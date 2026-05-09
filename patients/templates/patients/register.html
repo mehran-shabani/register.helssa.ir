@@ -8,10 +8,22 @@
     <link rel="stylesheet" href="{% static 'patients/css/style.css' %}">
 </head>
 <body>
-    <main class="page">
-        <section class="card">
-            <h1>ثبت‌نام بیماران</h1>
-            <p>لطفاً نام، نام خانوادگی و شماره موبایل خود را برای ثبت‌نام در سامانه وارد کنید.</p>
+    <main class="registration-page">
+        <section class="hero" aria-labelledby="page-title">
+            <div class="hero__badge">سامانه امن پذیرش</div>
+            <h1 id="page-title">سامانه ثبت‌نام بیماران</h1>
+            <p>
+                اطلاعات شما فقط برای تکمیل فرآیند ثبت‌نام و هماهنگی خدمات درمانی استفاده می‌شود
+                و با دقت و محرمانگی نگهداری خواهد شد.
+            </p>
+        </section>
+
+        <section class="form-card" aria-labelledby="form-title">
+            <div class="form-card__header">
+                <p class="eyebrow">فرم ثبت اطلاعات</p>
+                <h2 id="form-title">ثبت‌نام اولیه بیمار</h2>
+                <p>لطفاً مشخصات زیر را کامل و دقیق وارد کنید تا همکاران ما بتوانند با شما تماس بگیرند.</p>
+            </div>
 
             {% if messages %}
                 <ul class="messages" aria-label="پیام‌های فرم">
@@ -29,7 +41,7 @@
                 </ul>
             {% endif %}
 
-            <form method="post" novalidate>
+            <form class="registration-form" method="post" novalidate>
                 {% csrf_token %}
                 <div class="form-field">
                     <label for="{{ form.first_name.id_for_label }}">نام</label>
@@ -67,9 +79,18 @@
                     {% endif %}
                 </div>
 
-                <button type="submit">ارسال فرم</button>
+                <button type="submit">ارسال فرم ثبت‌نام</button>
             </form>
         </section>
+
+        <aside class="help-card" aria-label="راهنمای ثبت‌نام">
+            <h2>راهنمای کوتاه</h2>
+            <ul>
+                <li>شماره موبایل را با فرمت ۱۱ رقمی و شروع 09 وارد کنید.</li>
+                <li>پس از ثبت موفق، پیام تأیید در همین صفحه نمایش داده می‌شود.</li>
+                <li>در صورت بروز خطا، موارد مشخص‌شده را اصلاح و دوباره ارسال کنید.</li>
+            </ul>
+        </aside>
     </main>
 </body>
 </html>
