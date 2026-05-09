@@ -82,6 +82,18 @@ class PatientRegistrationFormTests(TestCase):
             ["این شماره موبایل قبلاً ثبت شده است."],
         )
 
+    def test_required_field_messages_are_persian(self):
+        form = PatientRegistrationForm(data={})
+
+        self.assertFalse(form.is_valid())
+        self.assertEqual(form.errors["first_name"], ["وارد کردن نام الزامی است."])
+        self.assertEqual(
+            form.errors["last_name"], ["وارد کردن نام خانوادگی الزامی است."]
+        )
+        self.assertEqual(
+            form.errors["mobile"], ["وارد کردن شماره موبایل الزامی است."]
+        )
+
 
 class RegisterPatientViewTests(TestCase):
     def test_get_register_patient_displays_empty_form(self):
@@ -91,6 +103,29 @@ class RegisterPatientViewTests(TestCase):
         self.assertTemplateUsed(response, "patients/register.html")
         self.assertIsInstance(response.context["form"], PatientRegistrationForm)
         self.assertFalse(response.context["form"].is_bound)
+
+    def test_register_template_uses_persian_labels_and_submit_text(self):
+        response = self.client.get(reverse("patients:register"))
+
+        self.assertContains(response, "ثبت‌نام بیماران")
+        self.assertContains(response, "نام")
+        self.assertContains(response, "نام خانوادگی")
+        self.assertContains(response, "شماره موبایل")
+        self.assertContains(response, "ارسال فرم")
+
+    def test_invalid_post_preserves_submitted_values(self):
+        response = self.client.post(
+            reverse("patients:register"),
+            data={
+                "first_name": "علی",
+                "last_name": "احمدی",
+                "mobile": "08123456789",
+            },
+        )
+
+        self.assertContains(response, 'value="علی"')
+        self.assertContains(response, 'value="احمدی"')
+        self.assertContains(response, 'value="08123456789"')
 
     def test_post_valid_form_saves_patient_redirects_and_adds_success_message(self):
         response = self.client.post(

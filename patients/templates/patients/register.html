@@ -4,46 +4,70 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>ثبت‌نام بیمار</title>
+    <title>ثبت‌نام بیماران</title>
     <link rel="stylesheet" href="{% static 'patients/css/style.css' %}">
 </head>
 <body>
     <main class="page">
         <section class="card">
-            <h1>ثبت‌نام بیمار</h1>
-            <p>فرم اولیه ثبت اطلاعات بیمار در سامانه.</p>
+            <h1>ثبت‌نام بیماران</h1>
+            <p>لطفاً نام، نام خانوادگی و شماره موبایل خود را برای ثبت‌نام در سامانه وارد کنید.</p>
 
             {% if messages %}
-                <ul class="messages">
+                <ul class="messages" aria-label="پیام‌های فرم">
                     {% for message in messages %}
                         <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
                     {% endfor %}
                 </ul>
             {% endif %}
 
+            {% if form.non_field_errors %}
+                <ul class="field-errors" aria-label="خطاهای فرم">
+                    {% for error in form.non_field_errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+
             <form method="post" novalidate>
                 {% csrf_token %}
-                {% for field in form %}
-                    <div class="form-field">
-                        {{ field.label_tag }}
-                        {{ field }}
-                        {% if field.errors %}
-                            <ul class="field-errors">
-                                {% for error in field.errors %}
-                                    <li>{{ error }}</li>
-                                {% endfor %}
-                            </ul>
-                        {% endif %}
-                    </div>
-                {% endfor %}
-                {% if form.non_field_errors %}
-                    <ul class="field-errors">
-                        {% for error in form.non_field_errors %}
-                            <li>{{ error }}</li>
-                        {% endfor %}
-                    </ul>
-                {% endif %}
-                <button type="submit">ثبت اطلاعات</button>
+                <div class="form-field">
+                    <label for="{{ form.first_name.id_for_label }}">نام</label>
+                    {{ form.first_name }}
+                    {% if form.first_name.errors %}
+                        <ul class="field-errors" aria-label="خطاهای نام">
+                            {% for error in form.first_name.errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+
+                <div class="form-field">
+                    <label for="{{ form.last_name.id_for_label }}">نام خانوادگی</label>
+                    {{ form.last_name }}
+                    {% if form.last_name.errors %}
+                        <ul class="field-errors" aria-label="خطاهای نام خانوادگی">
+                            {% for error in form.last_name.errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+
+                <div class="form-field">
+                    <label for="{{ form.mobile.id_for_label }}">شماره موبایل</label>
+                    {{ form.mobile }}
+                    {% if form.mobile.errors %}
+                        <ul class="field-errors" aria-label="خطاهای شماره موبایل">
+                            {% for error in form.mobile.errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+
+                <button type="submit">ارسال فرم</button>
             </form>
         </section>
     </main>
