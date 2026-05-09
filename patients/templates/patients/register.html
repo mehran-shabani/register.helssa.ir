@@ -1,0 +1,23 @@
+{% load static %}
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ثبت‌نام بیمار</title>
+    <link rel="stylesheet" href="{% static 'patients/css/style.css' %}">
+</head>
+<body>
+    <main class="page">
+        <section class="card">
+            <h1>ثبت‌نام بیمار</h1>
+            <p>فرم اولیه ثبت اطلاعات بیمار در سامانه.</p>
+            <form method="post">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <button type="submit">ثبت اطلاعات</button>
+            </form>
+        </section>
+    </main>
+</body>
+</html>
