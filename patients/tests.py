@@ -1,4 +1,5 @@
 from django.test import TestCase
+from django.urls import reverse
 
 from .forms import PatientRegistrationForm
 from .models import Patient
@@ -80,3 +81,51 @@ class PatientRegistrationFormTests(TestCase):
             form.errors["mobile"],
             ["این شماره موبایل قبلاً ثبت شده است."],
         )
+
+
+class RegisterPatientViewTests(TestCase):
+    def test_get_register_patient_displays_empty_form(self):
+        response = self.client.get(reverse("patients:register"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "patients/register.html")
+        self.assertIsInstance(response.context["form"], PatientRegistrationForm)
+        self.assertFalse(response.context["form"].is_bound)
+
+    def test_post_valid_form_saves_patient_redirects_and_adds_success_message(self):
+        response = self.client.post(
+            reverse("patients:register"),
+            data={
+                "first_name": "Ali",
+                "last_name": "Ahmadi",
+                "mobile": "09123456789",
+            },
+        )
+
+        self.assertRedirects(response, reverse("patients:register"))
+        self.assertTrue(
+            Patient.objects.filter(
+                first_name="Ali",
+                last_name="Ahmadi",
+                mobile="09123456789",
+            ).exists()
+        )
+
+        messages = list(response.wsgi_request._messages)
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(str(messages[0]), "ثبت‌نام شما با موفقیت انجام شد.")
+
+    def test_post_invalid_form_renders_errors_without_saving_patient(self):
+        response = self.client.post(
+            reverse("patients:register"),
+            data={
+                "first_name": "Ali",
+                "last_name": "Ahmadi",
+                "mobile": "08123456789",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Patient.objects.exists())
+        self.assertContains(response, "شماره موبایل باید با 09 شروع شود.")
+        self.assertTrue(response.context["form"].is_bound)

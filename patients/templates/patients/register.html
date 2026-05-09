@@ -12,9 +12,37 @@
         <section class="card">
             <h1>ثبت‌نام بیمار</h1>
             <p>فرم اولیه ثبت اطلاعات بیمار در سامانه.</p>
-            <form method="post">
+
+            {% if messages %}
+                <ul class="messages">
+                    {% for message in messages %}
+                        <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+
+            <form method="post" novalidate>
                 {% csrf_token %}
-                {{ form.as_p }}
+                {% for field in form %}
+                    <div class="form-field">
+                        {{ field.label_tag }}
+                        {{ field }}
+                        {% if field.errors %}
+                            <ul class="field-errors">
+                                {% for error in field.errors %}
+                                    <li>{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+                {% if form.non_field_errors %}
+                    <ul class="field-errors">
+                        {% for error in form.non_field_errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
                 <button type="submit">ثبت اطلاعات</button>
             </form>
         </section>
