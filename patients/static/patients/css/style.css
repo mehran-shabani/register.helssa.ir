@@ -1,22 +1,42 @@
+/* Shared color system: use these variables for every site color. */
 :root {
     --color-background: #edf7f6;
     --color-background-soft: #f8fbfc;
     --color-surface: #ffffff;
+    --color-surface-muted: #f8fafc;
+    --color-surface-translucent: rgba(255, 255, 255, 0.94);
+    --color-surface-icon: rgba(255, 255, 255, 0.8);
     --color-text: #1e293b;
     --color-heading: #134e4a;
-    --color-muted: #64748b;
+    --color-muted: #475569;
+    --color-on-primary: #ffffff;
     --color-primary: #0f766e;
-    --color-primary-dark: #115e59;
+    --color-primary-hover: #115e59;
+    --color-primary-active: #0d6b63;
     --color-primary-soft: #ccfbf1;
+    --color-primary-badge: rgba(204, 251, 241, 0.85);
     --color-border: #d7e5e8;
+    --color-border-translucent: rgba(215, 229, 232, 0.86);
     --color-success-bg: #e8f8ef;
     --color-success-border: #86efac;
     --color-success-text: #166534;
     --color-error-bg: #fff1f2;
     --color-error-border: #fecdd3;
     --color-error-text: #b91c1c;
-    --shadow-card: 0 24px 60px rgba(15, 23, 42, 0.1);
-    --shadow-soft: 0 16px 40px rgba(15, 118, 110, 0.08);
+    --color-transparent: transparent;
+    --color-hero-glow-primary: rgba(20, 184, 166, 0.18);
+    --color-hero-glow-secondary: rgba(14, 165, 233, 0.1);
+    --color-focus-ring: rgba(15, 118, 110, 0.14);
+    --color-button-focus-ring: rgba(15, 118, 110, 0.16);
+    --color-primary-shadow: rgba(15, 118, 110, 0.22);
+    --color-button-shadow: rgba(15, 118, 110, 0.18);
+    --color-button-active-shadow: rgba(15, 118, 110, 0.16);
+    --color-success-shadow: rgba(22, 101, 52, 0.08);
+    --color-error-shadow: rgba(185, 28, 28, 0.08);
+    --color-card-shadow: rgba(15, 23, 42, 0.1);
+    --color-soft-shadow: rgba(15, 118, 110, 0.08);
+    --shadow-card: 0 24px 60px var(--color-card-shadow);
+    --shadow-soft: 0 16px 40px var(--color-soft-shadow);
 }
 
 * {
@@ -33,8 +53,8 @@ body {
     font-family: Vazirmatn, Tahoma, Arial, sans-serif;
     line-height: 1.7;
     background:
-        radial-gradient(circle at top right, rgba(20, 184, 166, 0.18), transparent 26rem),
-        radial-gradient(circle at bottom left, rgba(14, 165, 233, 0.1), transparent 24rem),
+        radial-gradient(circle at top right, var(--color-hero-glow-primary), var(--color-transparent) 26rem),
+        radial-gradient(circle at bottom left, var(--color-hero-glow-secondary), var(--color-transparent) 24rem),
         linear-gradient(135deg, var(--color-background), var(--color-background-soft) 76%);
     color: var(--color-text);
 }
@@ -63,8 +83,8 @@ body {
     margin: 0 0 0.85rem;
     padding: 0.35rem 0.85rem;
     border-radius: 999px;
-    background: rgba(204, 251, 241, 0.85);
-    color: var(--color-primary-dark);
+    background: var(--color-primary-badge);
+    color: var(--color-primary-hover);
     font-size: 0.88rem;
     font-weight: 700;
 }
@@ -86,8 +106,8 @@ body {
 .form-card,
 .help-card {
     width: min(100%, 600px);
-    border: 1px solid rgba(215, 229, 232, 0.86);
-    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid var(--color-border-translucent);
+    background: var(--color-surface-translucent);
     backdrop-filter: blur(10px);
 }
 
@@ -141,7 +161,7 @@ body {
     border: 1px solid var(--color-border);
     border-radius: 1rem;
     outline: none;
-    background: #f8fafc;
+    background: var(--color-surface-muted);
     color: var(--color-text);
     font: inherit;
     transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
@@ -149,8 +169,8 @@ body {
 
 .form-card input:focus {
     border-color: var(--color-primary);
-    background: #ffffff;
-    box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.14);
+    background: var(--color-surface);
+    box-shadow: 0 0 0 4px var(--color-focus-ring);
 }
 
 .form-card button {
@@ -161,7 +181,7 @@ body {
     border: 0;
     border-radius: 1rem;
     background: var(--color-primary);
-    color: #ffffff;
+    color: var(--color-on-primary);
     font: inherit;
     font-weight: 800;
     cursor: pointer;
@@ -170,21 +190,21 @@ body {
 }
 
 .form-card button:hover {
-    background: var(--color-primary-dark);
-    box-shadow: 0 14px 26px rgba(15, 118, 110, 0.22);
+    background: var(--color-primary-hover);
+    box-shadow: 0 14px 26px var(--color-primary-shadow);
     transform: translateY(-1px);
 }
 
 .form-card button:focus,
 .form-card button:focus-visible {
-    background: var(--color-primary-dark);
-    box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.16), 0 12px 24px rgba(15, 118, 110, 0.18);
+    background: var(--color-primary-hover);
+    box-shadow: 0 0 0 4px var(--color-button-focus-ring), 0 12px 24px var(--color-button-shadow);
     outline: none;
 }
 
 .form-card button:active {
-    background: #0d6b63;
-    box-shadow: 0 8px 16px rgba(15, 118, 110, 0.18);
+    background: var(--color-primary-active);
+    box-shadow: 0 8px 16px var(--color-button-shadow);
     transform: translateY(1px) scale(0.99);
 }
 
@@ -199,7 +219,7 @@ body {
     display: flex;
     align-items: flex-start;
     gap: 0.75rem;
-    border: 1px solid transparent;
+    border: 1px solid var(--color-transparent);
     border-radius: 1.05rem;
     padding: 0.9rem 1rem;
     font-weight: 700;
@@ -209,7 +229,7 @@ body {
     background: var(--color-success-bg);
     border-color: var(--color-success-border);
     color: var(--color-success-text);
-    box-shadow: 0 12px 28px rgba(22, 101, 52, 0.08);
+    box-shadow: 0 12px 28px var(--color-success-shadow);
 }
 
 .message-card--error,
@@ -218,7 +238,7 @@ body {
     background: var(--color-error-bg);
     border-color: var(--color-error-border);
     color: var(--color-error-text);
-    box-shadow: 0 12px 28px rgba(185, 28, 28, 0.08);
+    box-shadow: 0 12px 28px var(--color-error-shadow);
 }
 
 .message-card__icon,
@@ -230,7 +250,7 @@ body {
     width: 1.65rem;
     height: 1.65rem;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.8);
+    background: var(--color-surface-icon);
     font-weight: 900;
     line-height: 1;
 }
@@ -350,7 +370,7 @@ body {
     }
 
     .form-card button:active {
-        box-shadow: 0 4px 10px rgba(15, 118, 110, 0.16);
+        box-shadow: 0 4px 10px var(--color-button-active-shadow);
         transform: translateY(2px) scale(0.97);
     }
 
