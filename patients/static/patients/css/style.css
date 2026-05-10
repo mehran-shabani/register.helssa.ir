@@ -169,11 +169,23 @@ body {
     transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.form-card button:hover,
-.form-card button:focus-visible {
+.form-card button:hover {
     background: var(--color-primary-dark);
     box-shadow: 0 14px 26px rgba(15, 118, 110, 0.22);
     transform: translateY(-1px);
+}
+
+.form-card button:focus,
+.form-card button:focus-visible {
+    background: var(--color-primary-dark);
+    box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.16), 0 12px 24px rgba(15, 118, 110, 0.18);
+    outline: none;
+}
+
+.form-card button:active {
+    background: #0d6b63;
+    box-shadow: 0 8px 16px rgba(15, 118, 110, 0.18);
+    transform: translateY(1px) scale(0.99);
 }
 
 .message-stack {
@@ -335,6 +347,11 @@ body {
         margin-top: 0.75rem;
         padding: 1rem 1.25rem;
         border-radius: 0.9rem;
+    }
+
+    .form-card button:active {
+        box-shadow: 0 4px 10px rgba(15, 118, 110, 0.16);
+        transform: translateY(2px) scale(0.97);
     }
 
     .message-stack {
