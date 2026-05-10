@@ -14,6 +14,8 @@
     --color-primary: #0f766e;
     --color-primary-hover: #115e59;
     --color-primary-active: #0d6b63;
+    --color-button-disabled: #94a3b8;
+    --color-button-disabled-text: #f8fafc;
     --color-primary-soft: #ccfbf1;
     --color-primary-badge: rgba(204, 251, 241, 0.85);
     --color-border: #d7e5e8;
@@ -217,6 +219,24 @@ body {
     background: var(--color-primary-active);
     box-shadow: 0 8px 16px var(--color-button-shadow);
     transform: translateY(1px) scale(0.99);
+}
+
+.form-card button:disabled {
+    background: var(--color-button-disabled);
+    color: var(--color-button-disabled-text);
+    cursor: not-allowed;
+    opacity: 0.85;
+    box-shadow: none;
+    transform: none;
+}
+
+.form-card button:disabled:hover,
+.form-card button:disabled:focus,
+.form-card button:disabled:focus-visible,
+.form-card button:disabled:active {
+    background: var(--color-button-disabled);
+    box-shadow: none;
+    transform: none;
 }
 
 .message-stack {

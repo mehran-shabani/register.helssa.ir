@@ -48,7 +48,7 @@
                 </div>
             {% endif %}
 
-            <form class="registration-form" method="post" novalidate>
+            <form class="registration-form" method="post" novalidate data-registration-form>
                 {% csrf_token %}
                 <div class="form-field">
                     <label for="{{ form.first_name.id_for_label }}">نام</label>
@@ -87,7 +87,7 @@
                     {% endif %}
                 </div>
 
-                <button type="submit">ارسال فرم ثبت‌نام</button>
+                <button type="submit" data-submit-button data-submitting-text="در حال ثبت...">ثبت‌نام</button>
             </form>
         </section>
 
@@ -100,5 +100,30 @@
             </ul>
         </aside>
     </main>
+    <script>
+        (function () {
+            var form = document.querySelector('[data-registration-form]');
+
+            if (!form) {
+                return;
+            }
+
+            form.addEventListener('submit', function (event) {
+                if (form.dataset.submitted === 'true') {
+                    event.preventDefault();
+                    return;
+                }
+
+                var submitButton = form.querySelector('[data-submit-button]');
+
+                form.dataset.submitted = 'true';
+
+                if (submitButton) {
+                    submitButton.textContent = submitButton.dataset.submittingText || 'در حال ثبت...';
+                    submitButton.disabled = true;
+                }
+            });
+        })();
+    </script>
 </body>
 </html>

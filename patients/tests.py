@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest.mock import patch
 
 from django.db import DatabaseError, IntegrityError
@@ -119,7 +120,22 @@ class RegisterPatientViewTests(TestCase):
         self.assertContains(response, "نام")
         self.assertContains(response, "نام خانوادگی")
         self.assertContains(response, "شماره موبایل")
-        self.assertContains(response, "ارسال فرم")
+        self.assertContains(response, ">ثبت‌نام</button>")
+
+    def test_register_form_disables_submit_button_after_submit_with_javascript(self):
+        response = self.client.get(reverse("patients:register"))
+
+        self.assertContains(response, 'data-registration-form')
+        self.assertContains(response, 'data-submit-button')
+        self.assertContains(response, 'data-submitting-text="در حال ثبت..."')
+        self.assertContains(response, 'submitButton.disabled = true')
+
+    def test_register_button_has_disabled_styles(self):
+        css = Path("patients/static/patients/css/style.css").read_text()
+
+        self.assertIn(".form-card button:disabled", css)
+        self.assertIn("cursor: not-allowed", css)
+        self.assertIn("--color-button-disabled", css)
 
     def test_register_template_uses_rtl_persian_html_attributes(self):
         response = self.client.get(reverse("patients:register"))
