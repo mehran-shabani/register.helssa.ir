@@ -134,10 +134,14 @@ class RegisterPatientViewTests(TestCase):
         self.assertContains(response, 'autocomplete="family-name"')
         self.assertContains(response, 'placeholder="مثلاً رضایی"')
         self.assertContains(response, 'autocomplete="tel"')
+        self.assertContains(response, 'aria-describedby="mobile-help"')
         self.assertContains(response, 'dir="ltr"')
         self.assertContains(response, 'inputmode="numeric"')
         self.assertContains(response, 'maxlength="11"')
-        self.assertContains(response, 'placeholder="مثلاً 09123456789"')
+        self.assertContains(response, 'placeholder="09123456789"')
+        self.assertContains(
+            response, "شماره موبایل باید ۱۱ رقمی و با 09 شروع شود."
+        )
 
     def test_register_template_styles_messages_as_alert_cards(self):
         response = self.client.get(reverse("patients:register"))

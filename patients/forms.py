@@ -29,10 +29,11 @@ class PatientRegistrationForm(forms.ModelForm):
         widget=forms.TextInput(
             attrs={
                 "autocomplete": "tel",
+                "aria-describedby": "mobile-help",
                 "dir": "ltr",
                 "inputmode": "numeric",
                 "maxlength": "11",
-                "placeholder": "مثلاً 09123456789",
+                "placeholder": "09123456789",
             }
         ),
         error_messages={"required": "شماره موبایل را وارد کنید."},

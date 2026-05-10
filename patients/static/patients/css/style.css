@@ -9,6 +9,7 @@
     --color-text: #1e293b;
     --color-heading: #134e4a;
     --color-muted: #475569;
+    --color-hint: #64748b;
     --color-on-primary: #ffffff;
     --color-primary: #0f766e;
     --color-primary-hover: #115e59;
@@ -51,7 +52,7 @@ body {
     min-height: 100vh;
     margin: 0;
     font-family: Vazirmatn, Tahoma, Arial, sans-serif;
-    line-height: 1.7;
+    line-height: 1.8;
     background:
         radial-gradient(circle at top right, var(--color-hero-glow-primary), var(--color-transparent) 26rem),
         radial-gradient(circle at bottom left, var(--color-hero-glow-secondary), var(--color-transparent) 24rem),
@@ -87,6 +88,7 @@ body {
     color: var(--color-primary-hover);
     font-size: 0.88rem;
     font-weight: 700;
+    line-height: 1.8;
 }
 
 .hero h1 {
@@ -100,7 +102,8 @@ body {
     max-width: 640px;
     margin: 0.9rem auto 0;
     color: var(--color-muted);
-    font-size: 1.02rem;
+    font-size: 1rem;
+    line-height: 1.8;
 }
 
 .form-card,
@@ -136,6 +139,8 @@ body {
 .form-card__header p:not(.eyebrow) {
     margin: 0.55rem 0 0;
     color: var(--color-muted);
+    font-size: 0.98rem;
+    line-height: 1.8;
 }
 
 .registration-form {
@@ -151,7 +156,9 @@ body {
 .form-card label {
     display: block;
     color: var(--color-text);
+    font-size: 1rem;
     font-weight: 700;
+    line-height: 1.8;
 }
 
 .form-card input {
@@ -164,6 +171,8 @@ body {
     background: var(--color-surface-muted);
     color: var(--color-text);
     font: inherit;
+    font-size: 1rem;
+    line-height: 1.8;
     transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
@@ -183,7 +192,9 @@ body {
     background: var(--color-primary);
     color: var(--color-on-primary);
     font: inherit;
+    font-size: 1rem;
     font-weight: 800;
+    line-height: 1.8;
     cursor: pointer;
     box-shadow: var(--shadow-soft);
     transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
@@ -222,7 +233,9 @@ body {
     border: 1px solid var(--color-transparent);
     border-radius: 1.05rem;
     padding: 0.9rem 1rem;
+    font-size: 0.98rem;
     font-weight: 700;
+    line-height: 1.8;
 }
 
 .message-card {
@@ -257,6 +270,15 @@ body {
 
 .message-card p {
     margin: 0;
+    line-height: 1.8;
+}
+
+.form-hint {
+    margin: -0.1rem 0 0;
+    color: var(--color-hint);
+    font-size: 0.92rem;
+    font-weight: 500;
+    line-height: 1.8;
 }
 
 .form-alert {
@@ -268,9 +290,9 @@ body {
     padding: 0;
     list-style: none;
     color: var(--color-error-text);
-    font-size: 0.9rem;
+    font-size: 0.92rem;
     font-weight: 700;
-    line-height: 1.65;
+    line-height: 1.8;
 }
 
 .field-errors:not(.field-errors--alert) li {
@@ -306,6 +328,8 @@ body {
     margin: 0.75rem 0 0;
     padding: 0 1.2rem 0 0;
     color: var(--color-muted);
+    font-size: 0.98rem;
+    line-height: 1.8;
 }
 
 .help-card li::marker {
@@ -333,9 +357,15 @@ body {
         text-align: right;
     }
 
+    .hero h1 {
+        font-size: 1.6rem;
+        line-height: 1.45;
+    }
+
     .hero p {
         margin-right: 0;
         margin-left: 0;
+        font-size: 0.98rem;
     }
 
     .form-card {
@@ -353,6 +383,20 @@ body {
 
     .form-field {
         gap: 0.65rem;
+    }
+
+    .form-card label,
+    .form-card input,
+    .form-card button,
+    .message-card,
+    .form-alert,
+    .help-card ul {
+        font-size: 1rem;
+    }
+
+    .form-hint,
+    .field-errors {
+        font-size: 0.95rem;
     }
 
     .form-card input {
