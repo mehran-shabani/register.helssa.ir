@@ -19,7 +19,9 @@ def send_register_sms_after_patient_created(sender, instance, created, **kwargs)
 
     def _send_sms():
         try:
-            send_register_sms(instance.mobile)
+            # اصلاح نام فیلدها مطابق با مدل Patient
+            name = f"{instance.first_name}_{instance.last_name}" # وب‌سرویس کاوه نگار معمولاً در توکن‌ها فاصله (Space) قبول نمی‌کند، ترجیحاً از Underscore استفاده کنید.
+            send_register_sms(instance.mobile, name)
         except Exception:
             logger.exception(
                 "Failed to send Kavenegar register SMS to patient %s.", instance.pk
