@@ -12,7 +12,7 @@ statics/
 .venv/
 venv/
 .vscode/
-
+*.txt
 
 # Environment variables
 .env
