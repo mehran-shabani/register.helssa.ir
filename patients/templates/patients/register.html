@@ -4,6 +4,14 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Browser theme color -->
+    <meta name="theme-color" content="#0f766e">
+    <meta name="theme-color" content="#0f766e" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#0f766e" media="(prefers-color-scheme: dark)">
+    <meta name="msapplication-navbutton-color" content="#0f766e">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
     <title>{{ share_meta.title }}</title>
     <meta name="description" content="{{ share_meta.description }}">
     <link rel="canonical" href="{{ share_meta.url }}">
@@ -27,6 +35,7 @@
     {% if site_logo %}
         <link rel="icon" type="image/png" href="{{ site_logo.url }}">
     {% endif %}
+
     <link rel="stylesheet" href="{% static 'patients/css/style.css' %}">
 </head>
 <body>
@@ -35,8 +44,11 @@
             {% if site_logo %}
                 <img class="hero__logo reveal" src="{{ site_logo.url }}" alt="{{ site_logo.alt }}" width="96" height="96">
             {% endif %}
+
             <div class="hero__badge reveal reveal--delay-1">سامانه ثبت نام پزشک خانواده</div>
+
             <h1 id="page-title" class="reveal reveal--delay-2">{{ share_meta.site_name }}</h1>
+
             <p class="reveal reveal--delay-3">
                 {{ share_meta.description }}
             </p>
@@ -81,6 +93,7 @@
                             <circle cx="12" cy="17.2" r="1" fill="currentColor"/>
                         </svg>
                     </span>
+
                     <ul class="field-errors field-errors--alert">
                         {% for error in form.non_field_errors %}
                             <li>{{ error }}</li>
@@ -91,6 +104,7 @@
 
             <form class="registration-form" method="post" novalidate data-registration-form>
                 {% csrf_token %}
+
                 <div class="form-field reveal reveal--delay-5">
                     <label for="{{ form.first_name.id_for_label }}">
                         <svg class="icon form-field__icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
@@ -99,7 +113,9 @@
                         </svg>
                         نام
                     </label>
+
                     {{ form.first_name }}
+
                     {% if form.first_name.errors %}
                         <ul class="field-errors" aria-label="خطاهای نام">
                             {% for error in form.first_name.errors %}
@@ -124,7 +140,9 @@
                         </svg>
                         نام خانوادگی
                     </label>
+
                     {{ form.last_name }}
+
                     {% if form.last_name.errors %}
                         <ul class="field-errors" aria-label="خطاهای نام خانوادگی">
                             {% for error in form.last_name.errors %}
@@ -149,8 +167,11 @@
                         </svg>
                         کد ملی
                     </label>
+
                     {{ form.national_code }}
+
                     <p class="form-hint" id="national-code-help">کد ملی باید ۱۰ رقمی باشد.</p>
+
                     {% if form.national_code.errors %}
                         <ul class="field-errors" aria-label="خطاهای کد ملی">
                             {% for error in form.national_code.errors %}
@@ -175,8 +196,11 @@
                         </svg>
                         شماره موبایل
                     </label>
+
                     {{ form.mobile }}
+
                     <p class="form-hint" id="mobile-help">شماره موبایل باید ۱۱ رقمی و با 09 شروع شود.</p>
+
                     {% if form.mobile.errors %}
                         <ul class="field-errors" aria-label="خطاهای شماره موبایل">
                             {% for error in form.mobile.errors %}
@@ -206,6 +230,7 @@
             </ul>
         </aside>
     </main>
+
     <script>
         (function () {
             var form = document.querySelector('[data-registration-form]');
