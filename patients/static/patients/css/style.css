@@ -14,6 +14,9 @@
     --color-primary: #0f766e;
     --color-primary-hover: #115e59;
     --color-primary-active: #0d6b63;
+    --color-social-primary: #047857;
+    --color-social-primary-hover: #065f46;
+    --color-social-ring: rgba(4, 120, 87, 0.18);
     --color-button-disabled: #94a3b8;
     --color-button-disabled-text: #f8fafc;
     --color-primary-soft: #ccfbf1;
@@ -466,81 +469,77 @@ body > * {
 }
 
 .hero-social {
-    display: grid;
+    display: inline-flex;
     width: fit-content;
-    justify-items: center;
-    gap: 0.45rem;
-    margin: 1.25rem auto 0;
-    padding: 0.75rem 1rem;
-    border: 1px solid var(--color-border-translucent);
-    border-radius: 1.15rem;
-    background: var(--color-surface-translucent);
+    align-items: center;
+    justify-content: center;
+    gap: 0.65rem;
+    margin: 1.35rem auto 0;
+    padding: 0.55rem 0.85rem 0.55rem 1rem;
+    border: 1px solid rgba(4, 120, 87, 0.16);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.82);
     color: var(--color-text);
-    text-align: center;
+    text-align: right;
     text-decoration: none;
-    box-shadow: var(--shadow-soft);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
     transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .hero-social:hover,
 .hero-social:focus,
 .hero-social:focus-visible {
-    border-color: var(--color-primary);
-    box-shadow: 0 14px 30px var(--color-primary-shadow);
+    border-color: rgba(4, 120, 87, 0.34);
+    box-shadow: 0 16px 34px var(--color-social-ring);
     outline: none;
     transform: translateY(-2px);
 }
 
 .hero-social__icon {
     display: inline-flex;
+    flex: 0 0 auto;
     align-items: center;
     justify-content: center;
-    width: 3.75rem;
-    height: 3.75rem;
-    border-radius: 1rem;
-    background: var(--color-primary);
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--color-social-primary), var(--color-social-primary-hover));
     color: var(--color-on-primary);
-    box-shadow: 0 12px 24px var(--color-primary-shadow);
+    box-shadow: 0 10px 22px var(--color-social-ring);
 }
 
 .hero-social__svg {
-    width: 2.7rem;
-    height: 2.7rem;
-}
-
-.hero-social__bubble {
-    fill: currentColor;
-    opacity: 0.2;
-}
-
-.hero-social__mark {
+    display: block;
+    width: 1.35rem;
+    height: 1.35rem;
     fill: currentColor;
 }
 
-.hero-social__line {
+.hero-social__svg path:last-child {
     fill: none;
-    stroke: var(--color-primary);
+    stroke: rgba(255, 255, 255, 0.7);
     stroke-linecap: round;
-    stroke-width: 2.4;
+    stroke-linejoin: round;
+    stroke-width: 1.35;
 }
 
 .hero-social__content {
     display: grid;
-    gap: 0.05rem;
+    gap: 0.02rem;
 }
 
 .hero-social__content strong {
     color: var(--color-heading);
-    font-size: 1rem;
+    font-size: 0.94rem;
     font-weight: 900;
-    line-height: 1.6;
+    line-height: 1.45;
 }
 
 .hero-social__content span {
     overflow-wrap: anywhere;
     color: var(--color-muted);
-    font-size: 0.9rem;
-    line-height: 1.5;
+    font-size: 0.78rem;
+    line-height: 1.4;
 }
 
 .help-card ul {
