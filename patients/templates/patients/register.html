@@ -47,16 +47,16 @@
                 <img class="hero__logo reveal" src="{{ site_logo.url }}" alt="{{ site_logo.alt }}" width="96" height="96">
             {% endif %}
 
-            <div class="hero__badge reveal reveal--from-right reveal--delay-1">سامانه ثبت نام پزشک خانواده</div>
+            <div class="hero__badge reveal reveal--delay-1">سامانه ثبت نام پزشک خانواده</div>
 
-            <h1 id="page-title" class="reveal reveal--from-left reveal--delay-2">{{ share_meta.site_name }}</h1>
+            <h1 id="page-title" class="reveal reveal--delay-2">{{ share_meta.site_name }}</h1>
 
-            <p class="hero__lead reveal reveal--from-right reveal--delay-3">
+            <p class="hero__lead reveal reveal--delay-3">
                 طرح جذب جمعیت پزشک خانواده در درمانگاه ولیعصر صغاد فعال شده است؛
                 ثبت‌نام اینترنتی انجام دهید تا درمانگاه برای تکمیل فرآیند با شما تماس بگیرد.
             </p>
 
-            <div class="hero__actions reveal reveal--from-left reveal--delay-4" aria-label="اقدام سریع">
+            <div class="hero__actions reveal reveal--delay-4" aria-label="اقدام سریع">
                 <a class="hero__button" href="#registration-form">ثبت‌نام سریع</a>
                 <span class="hero__note">مهم نیست پزشک خانواده فعلی شما چه کسی است.</span>
             </div>
@@ -110,7 +110,7 @@
                     <h3>پاسخگویی آنلاین</h3>
                     <p>پاسخگویی شبانه‌روزی ویژه افراد ثبت‌نام‌شده در طرح.</p>
                 </article>
-                <article class="benefit-card reveal reveal--from-bottom reveal--delay-1">
+                <article class="benefit-card reveal reveal--from-bottom reveal--delay-5">
                     <span class="benefit-card__icon" aria-hidden="true">۴</span>
                     <h3>پیگیری سلامت</h3>
                     <p>پیگیری مستمر وضعیت سلامت فرد و خانواده پس از ثبت‌نام.</p>
@@ -212,7 +212,7 @@
             <form class="registration-form" method="post" novalidate data-registration-form>
                 {% csrf_token %}
 
-                <div class="form-field reveal reveal--from-right reveal--delay-5">
+                <div class="form-field reveal reveal--delay-5">
                     <label for="{{ form.first_name.id_for_label }}">
                         <svg class="icon form-field__icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
                             <path d="M12 12.2a4.1 4.1 0 1 0 0-8.2 4.1 4.1 0 0 0 0 8.2Z" fill="none" stroke="currentColor" stroke-width="1.8"/>
@@ -239,7 +239,7 @@
                     {% endif %}
                 </div>
 
-                <div class="form-field reveal reveal--from-left reveal--delay-6">
+                <div class="form-field reveal reveal--delay-6">
                     <label for="{{ form.last_name.id_for_label }}">
                         <svg class="icon form-field__icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
                             <path d="M12 12.2a4.1 4.1 0 1 0 0-8.2 4.1 4.1 0 0 0 0 8.2Z" fill="none" stroke="currentColor" stroke-width="1.8"/>
@@ -266,7 +266,7 @@
                     {% endif %}
                 </div>
 
-                <div class="form-field reveal reveal--from-right reveal--delay-7">
+                <div class="form-field reveal reveal--delay-7">
                     <label for="{{ form.national_code.id_for_label }}">
                         <svg class="icon form-field__icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
                             <rect x="4" y="4.5" width="16" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/>
@@ -295,7 +295,7 @@
                     {% endif %}
                 </div>
 
-                <div class="form-field reveal reveal--from-left reveal--delay-8">
+                <div class="form-field reveal reveal--delay-8">
                     <label for="{{ form.mobile.id_for_label }}">
                         <svg class="icon form-field__icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
                             <rect x="7" y="2.8" width="10" height="18.4" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
