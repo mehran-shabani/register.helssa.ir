@@ -9,26 +9,27 @@
 :root {
     --scroll-progress: 0;
     --parallax-y: 0px;
-    --page-bg: #f2f4f7;
-    --dial-line: rgba(16, 47, 58, 0.08);
+    --page-bg: #f4efe8;
+    --luxury-ink: #1f2528;
+    --luxury-gold: #b08a55;
     --surface: #ffffff;
     --surface-soft: #f9fbfd;
-    --surface-glass: rgba(255, 255, 255, 0.9);
-    --text: #20313b;
-    --heading: #102f3a;
-    --muted: #5a6872;
-    --hint: #7a8790;
-    --line: #dbe3ea;
-    --line-strong: #c7d3dc;
-    --primary: #0f766e;
-    --primary-strong: #0b5d59;
-    --primary-soft: #d7f3ef;
-    --coral: #e76f51;
-    --coral-soft: #fff0ea;
-    --amber: #b7791f;
-    --amber-soft: #fff7df;
-    --blue: #2f80ed;
-    --blue-soft: #eaf3ff;
+    --surface-glass: rgba(255, 252, 247, 0.88);
+    --text: #2f3437;
+    --heading: #182023;
+    --muted: #6b6258;
+    --hint: #8a8176;
+    --line: #e4d8ca;
+    --line-strong: #cbbba7;
+    --primary: #2f6f68;
+    --primary-strong: #184d48;
+    --primary-soft: #e5f0ec;
+    --coral: #9f7046;
+    --coral-soft: #f8efe5;
+    --amber: #9d7543;
+    --amber-soft: #f6ead8;
+    --blue: #425f73;
+    --blue-soft: #e8edf0;
     --success-bg: #eaf8ef;
     --success-border: #97dfad;
     --success-text: #17653a;
@@ -72,12 +73,11 @@ body {
     margin: 0;
     overflow-x: hidden;
     background:
-        radial-gradient(circle at 50% 18%, rgba(255, 255, 255, 0.94) 0 5rem, transparent 5.1rem),
-        repeating-conic-gradient(from -8deg at 50% 18%, var(--dial-line) 0deg 1deg, transparent 1deg 15deg),
-        linear-gradient(135deg, rgba(15, 118, 110, 0.08), rgba(47, 128, 237, 0.05) 38%, rgba(231, 111, 81, 0.07)),
-        var(--page-bg);
+        linear-gradient(90deg, rgba(31, 37, 40, 0.055) 0 1px, transparent 1px 100%),
+        linear-gradient(180deg, rgba(31, 37, 40, 0.045) 0 1px, transparent 1px 100%),
+        linear-gradient(135deg, #fbf8f2 0%, #f1e6d8 46%, #e8dccb 100%);
     background-attachment: fixed;
-    background-size: auto, auto, auto, auto;
+    background-size: 88px 88px, 88px 88px, auto;
     color: var(--text);
     font-family: "Vazirmatn", "Segoe UI", Tahoma, Arial, sans-serif;
     line-height: 1.85;
@@ -91,25 +91,21 @@ body::before {
     z-index: 0;
     pointer-events: none;
     background:
-        radial-gradient(circle at 22% 28%, rgba(15, 118, 110, 0.16), transparent 18rem),
-        radial-gradient(circle at 82% 12%, rgba(47, 128, 237, 0.14), transparent 16rem),
-        radial-gradient(circle at 74% 74%, rgba(231, 111, 81, 0.12), transparent 18rem),
-        linear-gradient(135deg, rgba(255, 255, 255, 0.74), rgba(245, 247, 251, 0.48));
-    opacity: 0.9;
+        radial-gradient(circle at 16% 18%, rgba(176, 138, 85, 0.2), transparent 18rem),
+        linear-gradient(90deg, rgba(24, 32, 35, 0.08), transparent 26%, transparent 74%, rgba(24, 32, 35, 0.07)),
+        linear-gradient(135deg, rgba(255, 253, 249, 0.78), rgba(244, 239, 232, 0.38));
+    opacity: 0.95;
 }
 
 body::after {
     content: "";
     position: fixed;
-    inset: 8vh auto auto 50%;
+    inset: 0;
     z-index: 0;
-    width: min(58vw, 34rem);
-    aspect-ratio: 1;
     pointer-events: none;
-    border: 1px solid rgba(16, 47, 58, 0.08);
-    border-radius: 50%;
-    background: radial-gradient(circle, transparent 58%, rgba(255, 255, 255, 0.42) 59%, transparent 60%);
-    transform: translateX(-50%);
+    background:
+        linear-gradient(90deg, rgba(24, 32, 35, 0.92) 0 0.45rem, transparent 0.45rem calc(100% - 0.45rem), rgba(24, 32, 35, 0.92) calc(100% - 0.45rem)),
+        linear-gradient(180deg, rgba(24, 32, 35, 0.92) 0 0.45rem, transparent 0.45rem calc(100% - 0.45rem), rgba(24, 32, 35, 0.92) calc(100% - 0.45rem));
 }
 
 body > * {
@@ -259,11 +255,11 @@ body > * {
     gap: 0.75rem;
     padding: 1.1rem;
     border: 1px solid rgba(219, 227, 234, 0.82);
-    border-radius: 28px;
+    border-radius: 0;
     background:
-        linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(249, 251, 253, 0.62)),
-        var(--surface);
-    box-shadow: var(--shadow-md);
+        linear-gradient(135deg, rgba(24, 32, 35, 0.92), rgba(47, 52, 55, 0.82)),
+        var(--luxury-ink);
+    box-shadow: 0 28px 80px rgba(24, 32, 35, 0.24);
     overflow: hidden;
 }
 
@@ -278,12 +274,12 @@ body > * {
 
 .hero-device::before {
     inset-inline-start: 1rem;
-    background: var(--primary);
+    background: var(--luxury-gold);
 }
 
 .hero-device::after {
     inset-inline-end: 1rem;
-    background: var(--coral);
+    background: rgba(255, 255, 255, 0.72);
     opacity: calc(0.6 + (var(--scroll-progress) * 0.35));
 }
 
@@ -293,7 +289,7 @@ body > * {
     height: 0.65rem;
     justify-self: center;
     border-radius: 999px;
-    background: linear-gradient(90deg, var(--primary), var(--blue));
+    background: linear-gradient(90deg, var(--luxury-gold), #f3e6c9);
 }
 
 .hero-device__line {
@@ -302,7 +298,7 @@ body > * {
     height: 0.55rem;
     justify-self: center;
     border-radius: 999px;
-    background: var(--line);
+    background: rgba(255, 255, 255, 0.28);
 }
 
 .hero-device__line--wide {
@@ -321,17 +317,17 @@ body > * {
     display: block;
     height: 3rem;
     border-radius: var(--radius-card);
-    background: var(--blue-soft);
+    background: rgba(176, 138, 85, 0.34);
     transform: translateY(calc(var(--scroll-progress) * -8px));
 }
 
 .hero-device__grid span:nth-child(2) {
-    background: var(--amber-soft);
+    background: rgba(255, 255, 255, 0.2);
     transform: translateY(calc(var(--scroll-progress) * 8px));
 }
 
 .hero-device__grid span:nth-child(3) {
-    background: var(--coral-soft);
+    background: rgba(229, 240, 236, 0.26);
     transform: translateY(calc(var(--scroll-progress) * -4px));
 }
 
@@ -468,12 +464,12 @@ body > * {
 }
 
 .flow-step:nth-child(2) .flow-step__icon {
-    background: var(--blue-soft);
+    background: rgba(176, 138, 85, 0.34);
     color: var(--blue);
 }
 
 .flow-step:nth-child(3) .flow-step__icon {
-    background: var(--coral-soft);
+    background: rgba(229, 240, 236, 0.26);
     color: var(--coral);
 }
 
@@ -572,7 +568,7 @@ body > * {
 }
 
 .benefit-card:nth-child(2) .benefit-card__icon {
-    background: var(--blue-soft);
+    background: rgba(176, 138, 85, 0.34);
     color: var(--blue);
 }
 
@@ -582,7 +578,7 @@ body > * {
 }
 
 .benefit-card:nth-child(4) .benefit-card__icon {
-    background: var(--coral-soft);
+    background: rgba(229, 240, 236, 0.26);
     color: var(--coral);
 }
 
@@ -934,7 +930,7 @@ body > * {
     }
 
     body {
-        background-size: auto;
+        background-size: 52px 52px, 52px 52px, auto;
     }
 
     .registration-page {
