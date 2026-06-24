@@ -248,7 +248,7 @@ def format_sms_response(response):
                 format_html(
                     '<div style="display: grid; grid-template-columns: minmax(96px, 128px) minmax(0, 1fr); gap: 10px; padding: 9px 0; border-bottom: 1px solid rgba(128,128,128,.18);">'
                     '<strong style="color: #8aa0b2; font-weight: 700;">{}</strong>'
-                    '<span style="white-space: pre-wrap; overflow-wrap: anywhere; direction: rtl; text-align: right;">{}</span>'
+                    '<span style="white-space: pre-wrap; overflow-wrap: break-word; word-break: normal; direction: rtl; text-align: right;">{}</span>'
                     "</div>",
                     label,
                     value,
@@ -257,7 +257,7 @@ def format_sms_response(response):
 
         cards.append(
             format_html(
-                '<div style="box-sizing: border-box; width: min(100%, 720px); padding: 10px 14px; border: 1px solid rgba(128,128,128,.24); border-radius: 8px; line-height: 1.9; direction: rtl; text-align: right;">{}</div>',
+                '<div style="box-sizing: border-box; width: min(100%, 720px); min-width: 360px; padding: 10px 14px; border: 1px solid rgba(128,128,128,.24); border-radius: 8px; line-height: 1.9; direction: rtl; text-align: right;">{}</div>',
                 format_html_join("", "{}", ((row,) for row in rows)),
             )
         )
@@ -293,7 +293,7 @@ class SMSMessageLogInline(admin.TabularInline):
         if not obj.error:
             return "-"
         return format_html(
-            '<div style="white-space: pre-wrap; overflow-wrap: anywhere; direction: rtl; text-align: right;">{}</div>',
+            '<div style="white-space: pre-wrap; overflow-wrap: break-word; word-break: normal; direction: rtl; text-align: right;">{}</div>',
             obj.error,
         )
 
@@ -462,7 +462,7 @@ class SMSMessageLogAdmin(admin.ModelAdmin):
         if not obj.error:
             return "-"
         return format_html(
-            '<div style="white-space: pre-wrap; overflow-wrap: anywhere; direction: rtl; text-align: right;">{}</div>',
+            '<div style="white-space: pre-wrap; overflow-wrap: break-word; word-break: normal; direction: rtl; text-align: right;">{}</div>',
             obj.error,
         )
 

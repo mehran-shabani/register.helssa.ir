@@ -594,6 +594,10 @@ class KavenegarRegisterSMSTests(TestCase):
         self.assertIn("ارسال به مخابرات", formatted_response)
         self.assertIn("زمان سرویس", formatted_response)
         self.assertIn("۱۴۰۵/۰۳/۲۷ ۱۳:۰۲:۰۹", formatted_response)
+        self.assertIn("min-width: 360px", formatted_response)
+        self.assertIn("overflow-wrap: break-word", formatted_response)
+        self.assertIn("word-break: normal", formatted_response)
+        self.assertNotIn("overflow-wrap: anywhere", formatted_response)
         self.assertNotIn("messageid", formatted_response)
 
     def test_sms_response_preserves_unparseable_text(self):
