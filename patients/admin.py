@@ -257,7 +257,7 @@ def format_sms_response(response):
 
         cards.append(
             format_html(
-                '<div style="box-sizing: border-box; width: min(100%, 720px); min-width: 360px; padding: 10px 14px; border: 1px solid rgba(128,128,128,.24); border-radius: 8px; line-height: 1.9; direction: rtl; text-align: right;">{}</div>',
+                '<div style="box-sizing: border-box; width: min(100%, 720px); min-width: min(100%, 360px); padding: 10px 14px; border: 1px solid rgba(128,128,128,.24); border-radius: 8px; line-height: 1.9; direction: rtl; text-align: right;">{}</div>',
                 format_html_join("", "{}", ((row,) for row in rows)),
             )
         )
