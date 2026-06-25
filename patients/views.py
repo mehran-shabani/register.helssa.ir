@@ -9,7 +9,8 @@ from .forms import (
     DUPLICATE_NATIONAL_CODE_ERROR,
     PatientRegistrationForm,
 )
-from .models import Patient
+from .analytics import log_visit_event
+from .models import Patient, VisitEvent
 
 SAVE_ERROR = "در ذخیره‌سازی اطلاعات مشکلی رخ داد. لطفاً دوباره تلاش کنید."
 SITE_NAME = "سامانه ثبت نام پزشک خانواده دکتر حسین شبانی"
@@ -21,6 +22,13 @@ SHARE_DESCRIPTION = (
 SHARE_IMAGE_PATH = "patients/images/share-logo.png"
 SITE_LOGO_PATH = "patients/images/site-logo.png"
 COMMUNITY_BASE_COUNT = 1008
+
+
+def _log_analytics(request, event_type, **kwargs):
+    try:
+        log_visit_event(request, event_type, **kwargs)
+    except Exception:
+        pass
 
 
 def _static_source_exists(path):
@@ -43,19 +51,37 @@ def register_patient(request):
     """Display and process the patient registration form."""
 
     if request.method == "POST":
+        _log_analytics(request, VisitEvent.EVENT_FORM_SUBMIT_ATTEMPT)
         form = PatientRegistrationForm(request.POST)
         if form.is_valid():
             try:
                 with transaction.atomic():
-                    form.save()
+                    patient = form.save()
             except IntegrityError:
+                _log_analytics(
+                    request,
+                    VisitEvent.EVENT_FORM_SUBMIT_ERROR,
+                    metadata={"error_type": "IntegrityError"},
+                )
                 form.add_error("mobile", DUPLICATE_MOBILE_ERROR)
                 form.add_error("national_code", DUPLICATE_NATIONAL_CODE_ERROR)
             except DatabaseError:
+                _log_analytics(
+                    request,
+                    VisitEvent.EVENT_FORM_SUBMIT_ERROR,
+                    metadata={"error_type": "DatabaseError"},
+                )
                 form.add_error(None, SAVE_ERROR)
             else:
+                _log_analytics(request, VisitEvent.EVENT_FORM_SUBMIT_SUCCESS, patient=patient)
                 messages.success(request, "ثبت‌نام شما با موفقیت انجام شد.")
                 return redirect("patients:register")
+        else:
+            _log_analytics(
+                request,
+                VisitEvent.EVENT_FORM_SUBMIT_INVALID,
+                metadata={"error_fields": list(form.errors.keys())},
+            )
     else:
         form = PatientRegistrationForm()
 

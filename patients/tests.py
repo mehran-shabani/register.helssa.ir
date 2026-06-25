@@ -973,3 +973,99 @@ class RegisterPatientViewTests(TestCase):
         self.assertContains(
             response, "در ذخیره‌سازی اطلاعات مشکلی رخ داد. لطفاً دوباره تلاش کنید."
         )
+
+
+class VisitAnalyticsTests(TestCase):
+    def test_get_register_creates_page_view_event(self):
+        from .models import VisitEvent
+
+        response = self.client.get(reverse("patients:register"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(VisitEvent.objects.filter(event_type=VisitEvent.EVENT_PAGE_VIEW, path="/").count(), 1)
+        self.assertIn("helssa_vid", response.cookies)
+
+    def test_get_register_alias_creates_form_view_event(self):
+        from .models import VisitEvent
+
+        response = self.client.get(reverse("patients:register_patient"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(VisitEvent.objects.filter(event_type=VisitEvent.EVENT_FORM_VIEW, path="/register/").count(), 1)
+        self.assertIn("helssa_vid", response.cookies)
+
+    def test_invalid_post_creates_attempt_and_invalid_events_without_values(self):
+        from .models import VisitEvent
+
+        self.client.post(reverse("patients:register"), data={"first_name": "Ali", "last_name": "Ahmadi", "national_code": "1234567890", "mobile": "08123456789"})
+
+        self.assertTrue(VisitEvent.objects.filter(event_type=VisitEvent.EVENT_FORM_SUBMIT_ATTEMPT).exists())
+        invalid = VisitEvent.objects.get(event_type=VisitEvent.EVENT_FORM_SUBMIT_INVALID)
+        self.assertEqual(invalid.metadata, {"error_fields": ["mobile"]})
+        self.assertNotIn("08123456789", str(invalid.metadata))
+
+    def test_valid_post_creates_attempt_and_success_events(self):
+        from .models import VisitEvent
+
+        self.client.post(reverse("patients:register"), data={"first_name": "Ali", "last_name": "Ahmadi", "national_code": "1234567890", "mobile": "09123456789"})
+
+        self.assertTrue(VisitEvent.objects.filter(event_type=VisitEvent.EVENT_FORM_SUBMIT_ATTEMPT).exists())
+        success = VisitEvent.objects.get(event_type=VisitEvent.EVENT_FORM_SUBMIT_SUCCESS)
+        self.assertEqual(success.patient.mobile, "09123456789")
+
+    def test_logging_failure_never_crashes_registration(self):
+        with patch("patients.views.log_visit_event", side_effect=Exception("boom")):
+            response = self.client.post(reverse("patients:register"), data={"first_name": "Ali", "last_name": "Ahmadi", "national_code": "1234567890", "mobile": "09123456789"})
+
+        self.assertRedirects(response, reverse("patients:register"))
+        self.assertTrue(Patient.objects.exists())
+
+    def test_valid_post_sets_generated_visitor_cookie_on_redirect(self):
+        response = self.client.post(reverse("patients:register"), data={"first_name": "Ali", "last_name": "Ahmadi", "national_code": "1234567890", "mobile": "09123456789"})
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("helssa_vid", response.cookies)
+
+    def test_summary_counts_known_events(self):
+        from .analytics import get_visit_report_summary
+        from .models import VisitEvent
+
+        VisitEvent.objects.create(visitor_id="00000000-0000-0000-0000-000000000001", event_type=VisitEvent.EVENT_FORM_VIEW, method="GET", path="/", status_code=200)
+        VisitEvent.objects.create(visitor_id="00000000-0000-0000-0000-000000000002", event_type=VisitEvent.EVENT_FORM_SUBMIT_ATTEMPT, method="POST", path="/register/", referrer="https://example.com")
+        VisitEvent.objects.create(visitor_id="00000000-0000-0000-0000-000000000002", event_type=VisitEvent.EVENT_FORM_SUBMIT_SUCCESS, method="POST", path="/register/", referrer="https://example.com")
+
+        summary = get_visit_report_summary(VisitEvent.objects.all())
+
+        self.assertEqual(summary["total_events"], 3)
+        self.assertEqual(summary["page_views"], 1)
+        self.assertEqual(summary["unique_visitors"], 2)
+        self.assertEqual(summary["form_views"], 1)
+        self.assertEqual(summary["submit_attempts"], 1)
+        self.assertEqual(summary["successful_registrations"], 1)
+        self.assertEqual(summary["top_paths"][0]["path"], "/register/")
+        self.assertEqual(summary["top_referrers"][0]["referrer"], "https://example.com")
+
+    def test_visit_pdf_builder_returns_non_empty_pdf(self):
+        from .admin import build_visit_events_pdf
+        from .analytics import get_visit_report_summary
+        from .models import VisitEvent
+        from django.utils import timezone
+
+        register_test_pdf_fonts()
+        event = VisitEvent.objects.create(visitor_id="00000000-0000-0000-0000-000000000001", event_type=VisitEvent.EVENT_FORM_VIEW, method="GET", path="/", status_code=200)
+        queryset = VisitEvent.objects.all()
+        pdf = build_visit_events_pdf(queryset, get_visit_report_summary(queryset), event.created_at, timezone.now())
+
+        self.assertGreater(len(pdf.getvalue()), 100)
+        self.assertTrue(pdf.getvalue().startswith(b"%PDF"))
+
+    def test_admin_report_does_not_expose_raw_editable_details(self):
+        from .models import VisitEvent, VisitReport
+        from .admin import VisitReportAdmin
+
+        model_admin = VisitReportAdmin(VisitReport, admin.site)
+        request = Mock(user=Mock())
+
+        self.assertFalse(model_admin.has_add_permission(request))
+        self.assertFalse(model_admin.has_change_permission(request, VisitEvent()))
+        self.assertFalse(model_admin.has_delete_permission(request, VisitEvent()))

@@ -86,6 +86,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "patients.middleware.PublicVisitTrackingMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -180,6 +181,14 @@ USE_TZ = True
 
 STATIC_URL = _env("DJANGO_STATIC_URL", "static/")
 STATIC_ROOT = BASE_DIR / _env("DJANGO_STATIC_ROOT", "statics")
+
+ANALYTICS_ENABLED = _env_bool("ANALYTICS_ENABLED", True)
+ANALYTICS_VISITOR_COOKIE_NAME = "helssa_vid"
+ANALYTICS_VISITOR_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
+try:
+    VISIT_REPORT_PDF_MAX_EVENTS = int(_env("VISIT_REPORT_PDF_MAX_EVENTS", "1000"))
+except (TypeError, ValueError):
+    VISIT_REPORT_PDF_MAX_EVENTS = 1000
 
 # Kavenegar SMS settings
 KAVENEGAR_API_KEY = _env("KAVENEGAR_API_KEY")

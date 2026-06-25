@@ -1,0 +1,19 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<div dir="rtl" style="text-align:right">
+  <h1>گزارش بازدید سایت</h1>
+  <form method="get" style="margin: 1rem 0; display:flex; gap:1rem; align-items:end; flex-wrap:wrap;">
+    <label>از تاریخ/زمان <input type="datetime-local" name="start_date" value="{{ start_value }}"></label>
+    <label>تا تاریخ/زمان <input type="datetime-local" name="end_date" value="{{ end_value }}"></label>
+    <button type="submit" class="button">نمایش خلاصه</button>
+    <a class="button" href="{{ export_url }}?start_date={{ start_value|urlencode }}&end_date={{ end_value|urlencode }}">دانلود گزارش PDF جزئیات</a>
+  </form>
+  <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin:16px 0;">
+    {% for label,value in cards %}<div style="border:1px solid #ddd; border-radius:8px; padding:12px;"><strong>{{ label }}</strong><div style="font-size:22px">{{ value }}</div></div>{% endfor %}
+  </div>
+  <h2>مسیرهای پربازدید</h2><ul>{% for item in summary.top_paths %}<li>{{ item.path }}: {{ item.count }}</li>{% empty %}<li>داده‌ای وجود ندارد.</li>{% endfor %}</ul>
+  <h2>ارجاع‌دهنده‌های پرتکرار</h2><ul>{% for item in summary.top_referrers %}<li>{{ item.referrer }}: {{ item.count }}</li>{% empty %}<li>داده‌ای وجود ندارد.</li>{% endfor %}</ul>
+  <h2>شمارش روزانه</h2><ul>{% for day,count in summary.daily_counts.items %}<li>{{ day }}: {{ count }}</li>{% empty %}<li>داده‌ای وجود ندارد.</li>{% endfor %}</ul>
+  <p><em>جزئیات خام رویدادها در این صفحه نمایش داده نمی‌شود و فقط در PDF قابل دریافت است.</em></p>
+</div>
+{% endblock %}
