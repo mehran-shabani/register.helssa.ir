@@ -976,13 +976,22 @@ class RegisterPatientViewTests(TestCase):
 
 
 class VisitAnalyticsTests(TestCase):
-    def test_get_register_creates_form_view_event(self):
+    def test_get_register_creates_page_view_event(self):
         from .models import VisitEvent
 
         response = self.client.get(reverse("patients:register"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(VisitEvent.objects.filter(event_type=VisitEvent.EVENT_FORM_VIEW, path="/").count(), 1)
+        self.assertEqual(VisitEvent.objects.filter(event_type=VisitEvent.EVENT_PAGE_VIEW, path="/").count(), 1)
+        self.assertIn("helssa_vid", response.cookies)
+
+    def test_get_register_alias_creates_form_view_event(self):
+        from .models import VisitEvent
+
+        response = self.client.get(reverse("patients:register_patient"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(VisitEvent.objects.filter(event_type=VisitEvent.EVENT_FORM_VIEW, path="/register/").count(), 1)
         self.assertIn("helssa_vid", response.cookies)
 
     def test_invalid_post_creates_attempt_and_invalid_events_without_values(self):
@@ -1010,6 +1019,12 @@ class VisitAnalyticsTests(TestCase):
 
         self.assertRedirects(response, reverse("patients:register"))
         self.assertTrue(Patient.objects.exists())
+
+    def test_valid_post_sets_generated_visitor_cookie_on_redirect(self):
+        response = self.client.post(reverse("patients:register"), data={"first_name": "Ali", "last_name": "Ahmadi", "national_code": "1234567890", "mobile": "09123456789"})
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("helssa_vid", response.cookies)
 
     def test_summary_counts_known_events(self):
         from .analytics import get_visit_report_summary

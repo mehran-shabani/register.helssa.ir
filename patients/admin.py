@@ -8,7 +8,7 @@ from xml.sax.saxutils import escape
 from bidi.algorithm import get_display
 
 from django import forms
-from django.core.exceptions import ImproperlyConfigured
+from django.core.exceptions import ImproperlyConfigured, PermissionDenied
 from django.http import FileResponse
 from django.conf import settings
 from django.contrib import admin, messages
@@ -91,7 +91,7 @@ def build_visit_events_pdf(events, summary, start_datetime, end_datetime):
     )]
     story.append(Table(summary_rows, colWidths=[5 * cm, 3 * cm], style=TableStyle([("GRID", (0,0), (-1,-1), 0.5, colors.HexColor("#BFC9D1")), ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#EAF2F8"))])))
     max_events = VISIT_REPORT_PDF_MAX_EVENTS
-    total = events.count() if hasattr(events, "count") else len(events)
+    total = summary["total_events"]
     if total > max_events:
         story += [Spacer(1, 0.2 * cm), Paragraph(_rtl_text(f"توجه: فقط {max_events} ردیف نخست از {total} رویداد نمایش داده شده است."), cell_style)]
     rows = [[Paragraph(_rtl_text(h), header_style) for h in ["مرورگر/دستگاه", "ارجاع‌دهنده", "شناسه بازدیدکننده", "وضعیت پاسخ", "روش", "مسیر", "نوع رویداد", "زمان", "ردیف"]]]
@@ -594,6 +594,8 @@ class VisitReportAdmin(admin.ModelAdmin):
         return super().changelist_view(request, context)
 
     def export_pdf(self, request):
+        if not self.has_view_permission(request):
+            raise PermissionDenied
         try:
             start_dt, end_dt, _start_value, _end_value = _parse_report_range(request)
         except (TypeError, ValueError):
@@ -601,7 +603,7 @@ class VisitReportAdmin(admin.ModelAdmin):
             return self.changelist_view(request)
         queryset = get_visit_report_queryset(start_dt, end_dt).order_by("-created_at")
         summary = get_visit_report_summary(queryset)
-        if queryset.count() > VISIT_REPORT_PDF_MAX_EVENTS:
+        if summary["total_events"] > VISIT_REPORT_PDF_MAX_EVENTS:
             self.message_user(request, f"گزارش PDF به {VISIT_REPORT_PDF_MAX_EVENTS} ردیف محدود شد.", messages.WARNING)
         pdf_buffer = build_visit_events_pdf(queryset, summary, start_dt, end_dt)
         return FileResponse(pdf_buffer, as_attachment=True, filename="visit-events-report.pdf", content_type="application/pdf")

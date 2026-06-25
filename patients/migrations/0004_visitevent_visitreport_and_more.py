@@ -123,26 +123,4 @@ class Migration(migrations.Migration):
             },
             bases=("patients.visitevent",),
         ),
-        migrations.AddIndex(
-            model_name="visitevent",
-            index=models.Index(
-                fields=["created_at"], name="patients_vi_created_dcc2a3_idx"
-            ),
-        ),
-        migrations.AddIndex(
-            model_name="visitevent",
-            index=models.Index(
-                fields=["event_type"], name="patients_vi_event_t_da597a_idx"
-            ),
-        ),
-        migrations.AddIndex(
-            model_name="visitevent",
-            index=models.Index(
-                fields=["visitor_id"], name="patients_vi_visitor_c01a4b_idx"
-            ),
-        ),
-        migrations.AddIndex(
-            model_name="visitevent",
-            index=models.Index(fields=["path"], name="patients_vi_path_959dc8_idx"),
-        ),
     ]

@@ -82,12 +82,7 @@ class VisitEvent(models.Model):
         ordering = ("-created_at",)
         verbose_name = "رویداد بازدید"
         verbose_name_plural = "رویدادهای بازدید"
-        indexes = [
-            models.Index(fields=["created_at"]),
-            models.Index(fields=["event_type"]),
-            models.Index(fields=["visitor_id"]),
-            models.Index(fields=["path"]),
-        ]
+        indexes = []
 
     def __str__(self):
         return f"{self.get_event_type_display()} - {self.path}"

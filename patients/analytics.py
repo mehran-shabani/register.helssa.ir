@@ -4,8 +4,8 @@ import uuid
 from collections import OrderedDict
 
 from django.conf import settings
-from django.db.models import Count
-from django.utils import timezone
+from django.db.models import Count, Q
+from django.db.models.functions import TruncDate
 
 from .models import VisitEvent
 
@@ -68,12 +68,6 @@ def log_visit_event(request, event_type, response=None, patient=None, metadata=N
         visitor_id = get_or_create_visitor_id(request, response=response)
         session = getattr(request, "session", None)
         session_key = getattr(session, "session_key", "") or ""
-        if session is not None and not session_key:
-            try:
-                session.save()
-                session_key = session.session_key or ""
-            except Exception:
-                session_key = ""
         ip = get_client_ip(request)
         raw_ip = ip if getattr(settings, "ANALYTICS_STORE_RAW_IP", False) else ""
         event_metadata = _safe_metadata(metadata)
@@ -103,25 +97,32 @@ def get_visit_report_queryset(start_datetime, end_datetime):
 
 
 def get_visit_report_summary(queryset):
-    total_events = queryset.count()
-    def count(event_type):
-        return queryset.filter(event_type=event_type).count()
+    metrics = queryset.aggregate(
+        total_events=Count("id"),
+        page_views=Count("id", filter=Q(event_type__in=[VisitEvent.EVENT_PAGE_VIEW, VisitEvent.EVENT_FORM_VIEW])),
+        unique_visitors=Count("visitor_id", distinct=True),
+        form_views=Count("id", filter=Q(event_type=VisitEvent.EVENT_FORM_VIEW)),
+        submit_attempts=Count("id", filter=Q(event_type=VisitEvent.EVENT_FORM_SUBMIT_ATTEMPT)),
+        successful_registrations=Count("id", filter=Q(event_type=VisitEvent.EVENT_FORM_SUBMIT_SUCCESS)),
+        invalid_submits=Count("id", filter=Q(event_type=VisitEvent.EVENT_FORM_SUBMIT_INVALID)),
+        error_submits=Count("id", filter=Q(event_type=VisitEvent.EVENT_FORM_SUBMIT_ERROR)),
+    )
     top_paths = list(queryset.values("path").annotate(count=Count("id")).order_by("-count", "path")[:10])
     top_referrers = list(queryset.exclude(referrer="").values("referrer").annotate(count=Count("id")).order_by("-count", "referrer")[:10])
-    daily = OrderedDict()
-    for row in queryset.datetimes("created_at", "day", order="ASC"):
-        start = row
-        end = row + timezone.timedelta(days=1)
-        daily[start.date().isoformat()] = queryset.filter(created_at__gte=start, created_at__lt=end).count()
+    daily = OrderedDict(
+        (row["day"].isoformat(), row["count"])
+        for row in queryset.annotate(day=TruncDate("created_at")).values("day").annotate(count=Count("id")).order_by("day")
+        if row["day"]
+    )
     return {
-        "total_events": total_events,
-        "page_views": queryset.filter(event_type__in=[VisitEvent.EVENT_PAGE_VIEW, VisitEvent.EVENT_FORM_VIEW]).count(),
-        "unique_visitors": queryset.values("visitor_id").distinct().count(),
-        "form_views": count(VisitEvent.EVENT_FORM_VIEW),
-        "submit_attempts": count(VisitEvent.EVENT_FORM_SUBMIT_ATTEMPT),
-        "successful_registrations": count(VisitEvent.EVENT_FORM_SUBMIT_SUCCESS),
-        "invalid_submits": count(VisitEvent.EVENT_FORM_SUBMIT_INVALID),
-        "error_submits": count(VisitEvent.EVENT_FORM_SUBMIT_ERROR),
+        "total_events": metrics["total_events"],
+        "page_views": metrics["page_views"],
+        "unique_visitors": metrics["unique_visitors"],
+        "form_views": metrics["form_views"],
+        "submit_attempts": metrics["submit_attempts"],
+        "successful_registrations": metrics["successful_registrations"],
+        "invalid_submits": metrics["invalid_submits"],
+        "error_submits": metrics["error_submits"],
         "top_paths": top_paths,
         "top_referrers": top_referrers,
         "daily_counts": daily,
