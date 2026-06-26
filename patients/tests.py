@@ -20,7 +20,12 @@ from .admin import (
     SMSMessageLogInline,
     format_sms_response,
 )
-from .datetime import format_tehran_jalali
+from .datetime import (
+    format_tehran_jalali,
+    format_tehran_jalali_input,
+    parse_tehran_jalali_datetime,
+    to_english_digits,
+)
 from .forms import (
     DUPLICATE_MOBILE_ERROR,
     DUPLICATE_NATIONAL_CODE_ERROR,
@@ -75,6 +80,24 @@ class PersianDateTimeFormatTests(TestCase):
         value = datetime(2026, 3, 20, 20, 45, 10)
 
         self.assertEqual(format_tehran_jalali(value), "۱۴۰۴/۱۲/۲۹ ۲۰:۴۵:۱۰")
+
+    def test_jalali_input_format_and_parser_accept_persian_digits(self):
+        value = datetime(2026, 6, 26, 5, 30, tzinfo=datetime_timezone.utc)
+
+        self.assertEqual(format_tehran_jalali_input(value), "۱۴۰۵/۰۴/۰۵ ۰۹:۰۰")
+        self.assertEqual(to_english_digits("۱۴۰۵/۰۴/۰۵ ۰۹:۰۰"), "1405/04/05 09:00")
+        self.assertEqual(
+            parse_tehran_jalali_datetime("۱۴۰۵/۰۴/۰۵ ۰۹:۰۰").astimezone(
+                datetime_timezone.utc
+            ),
+            value,
+        )
+
+    def test_jalali_input_parser_accepts_dash_and_defaults_seconds(self):
+        parsed = parse_tehran_jalali_datetime("1405-04-05 09:00")
+
+        self.assertEqual(parsed.second, 0)
+        self.assertEqual(format_tehran_jalali(parsed), "۱۴۰۵/۰۴/۰۵ ۰۹:۰۰:۰۰")
 
 
 class PatientRegistrationFormTests(TestCase):
@@ -982,7 +1005,12 @@ class VisitAnalyticsTests(TestCase):
         response = self.client.get(reverse("patients:register"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(VisitEvent.objects.filter(event_type=VisitEvent.EVENT_PAGE_VIEW, path="/").count(), 1)
+        self.assertEqual(
+            VisitEvent.objects.filter(
+                event_type=VisitEvent.EVENT_PAGE_VIEW, path="/"
+            ).count(),
+            1,
+        )
         self.assertIn("helssa_vid", response.cookies)
 
     def test_get_register_alias_creates_form_view_event(self):
@@ -991,37 +1019,86 @@ class VisitAnalyticsTests(TestCase):
         response = self.client.get(reverse("patients:register_patient"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(VisitEvent.objects.filter(event_type=VisitEvent.EVENT_FORM_VIEW, path="/register/").count(), 1)
+        self.assertEqual(
+            VisitEvent.objects.filter(
+                event_type=VisitEvent.EVENT_FORM_VIEW, path="/register/"
+            ).count(),
+            1,
+        )
         self.assertIn("helssa_vid", response.cookies)
 
     def test_invalid_post_creates_attempt_and_invalid_events_without_values(self):
         from .models import VisitEvent
 
-        self.client.post(reverse("patients:register"), data={"first_name": "Ali", "last_name": "Ahmadi", "national_code": "1234567890", "mobile": "08123456789"})
+        self.client.post(
+            reverse("patients:register"),
+            data={
+                "first_name": "Ali",
+                "last_name": "Ahmadi",
+                "national_code": "1234567890",
+                "mobile": "08123456789",
+            },
+        )
 
-        self.assertTrue(VisitEvent.objects.filter(event_type=VisitEvent.EVENT_FORM_SUBMIT_ATTEMPT).exists())
-        invalid = VisitEvent.objects.get(event_type=VisitEvent.EVENT_FORM_SUBMIT_INVALID)
+        self.assertTrue(
+            VisitEvent.objects.filter(
+                event_type=VisitEvent.EVENT_FORM_SUBMIT_ATTEMPT
+            ).exists()
+        )
+        invalid = VisitEvent.objects.get(
+            event_type=VisitEvent.EVENT_FORM_SUBMIT_INVALID
+        )
         self.assertEqual(invalid.metadata, {"error_fields": ["mobile"]})
         self.assertNotIn("08123456789", str(invalid.metadata))
 
     def test_valid_post_creates_attempt_and_success_events(self):
         from .models import VisitEvent
 
-        self.client.post(reverse("patients:register"), data={"first_name": "Ali", "last_name": "Ahmadi", "national_code": "1234567890", "mobile": "09123456789"})
+        self.client.post(
+            reverse("patients:register"),
+            data={
+                "first_name": "Ali",
+                "last_name": "Ahmadi",
+                "national_code": "1234567890",
+                "mobile": "09123456789",
+            },
+        )
 
-        self.assertTrue(VisitEvent.objects.filter(event_type=VisitEvent.EVENT_FORM_SUBMIT_ATTEMPT).exists())
-        success = VisitEvent.objects.get(event_type=VisitEvent.EVENT_FORM_SUBMIT_SUCCESS)
+        self.assertTrue(
+            VisitEvent.objects.filter(
+                event_type=VisitEvent.EVENT_FORM_SUBMIT_ATTEMPT
+            ).exists()
+        )
+        success = VisitEvent.objects.get(
+            event_type=VisitEvent.EVENT_FORM_SUBMIT_SUCCESS
+        )
         self.assertEqual(success.patient.mobile, "09123456789")
 
     def test_logging_failure_never_crashes_registration(self):
         with patch("patients.views.log_visit_event", side_effect=Exception("boom")):
-            response = self.client.post(reverse("patients:register"), data={"first_name": "Ali", "last_name": "Ahmadi", "national_code": "1234567890", "mobile": "09123456789"})
+            response = self.client.post(
+                reverse("patients:register"),
+                data={
+                    "first_name": "Ali",
+                    "last_name": "Ahmadi",
+                    "national_code": "1234567890",
+                    "mobile": "09123456789",
+                },
+            )
 
         self.assertRedirects(response, reverse("patients:register"))
         self.assertTrue(Patient.objects.exists())
 
     def test_valid_post_sets_generated_visitor_cookie_on_redirect(self):
-        response = self.client.post(reverse("patients:register"), data={"first_name": "Ali", "last_name": "Ahmadi", "national_code": "1234567890", "mobile": "09123456789"})
+        response = self.client.post(
+            reverse("patients:register"),
+            data={
+                "first_name": "Ali",
+                "last_name": "Ahmadi",
+                "national_code": "1234567890",
+                "mobile": "09123456789",
+            },
+        )
 
         self.assertEqual(response.status_code, 302)
         self.assertIn("helssa_vid", response.cookies)
@@ -1030,9 +1107,27 @@ class VisitAnalyticsTests(TestCase):
         from .analytics import get_visit_report_summary
         from .models import VisitEvent
 
-        VisitEvent.objects.create(visitor_id="00000000-0000-0000-0000-000000000001", event_type=VisitEvent.EVENT_FORM_VIEW, method="GET", path="/", status_code=200)
-        VisitEvent.objects.create(visitor_id="00000000-0000-0000-0000-000000000002", event_type=VisitEvent.EVENT_FORM_SUBMIT_ATTEMPT, method="POST", path="/register/", referrer="https://example.com")
-        VisitEvent.objects.create(visitor_id="00000000-0000-0000-0000-000000000002", event_type=VisitEvent.EVENT_FORM_SUBMIT_SUCCESS, method="POST", path="/register/", referrer="https://example.com")
+        VisitEvent.objects.create(
+            visitor_id="00000000-0000-0000-0000-000000000001",
+            event_type=VisitEvent.EVENT_FORM_VIEW,
+            method="GET",
+            path="/",
+            status_code=200,
+        )
+        VisitEvent.objects.create(
+            visitor_id="00000000-0000-0000-0000-000000000002",
+            event_type=VisitEvent.EVENT_FORM_SUBMIT_ATTEMPT,
+            method="POST",
+            path="/register/",
+            referrer="https://example.com",
+        )
+        VisitEvent.objects.create(
+            visitor_id="00000000-0000-0000-0000-000000000002",
+            event_type=VisitEvent.EVENT_FORM_SUBMIT_SUCCESS,
+            method="POST",
+            path="/register/",
+            referrer="https://example.com",
+        )
 
         summary = get_visit_report_summary(VisitEvent.objects.all())
 
@@ -1052,9 +1147,20 @@ class VisitAnalyticsTests(TestCase):
         from django.utils import timezone
 
         register_test_pdf_fonts()
-        event = VisitEvent.objects.create(visitor_id="00000000-0000-0000-0000-000000000001", event_type=VisitEvent.EVENT_FORM_VIEW, method="GET", path="/", status_code=200)
+        event = VisitEvent.objects.create(
+            visitor_id="00000000-0000-0000-0000-000000000001",
+            event_type=VisitEvent.EVENT_FORM_VIEW,
+            method="GET",
+            path="/",
+            status_code=200,
+        )
         queryset = VisitEvent.objects.all()
-        pdf = build_visit_events_pdf(queryset, get_visit_report_summary(queryset), event.created_at, timezone.now())
+        pdf = build_visit_events_pdf(
+            queryset,
+            get_visit_report_summary(queryset),
+            event.created_at,
+            timezone.now(),
+        )
 
         self.assertGreater(len(pdf.getvalue()), 100)
         self.assertTrue(pdf.getvalue().startswith(b"%PDF"))
@@ -1076,28 +1182,40 @@ class VisitAnalyticsTests(TestCase):
         from django.test import RequestFactory
         from django.utils import timezone
 
-        mocked_now.return_value = datetime(2026, 3, 21, 8, 30, tzinfo=datetime_timezone.utc)
+        mocked_now.return_value = datetime(
+            2026, 3, 21, 8, 30, tzinfo=datetime_timezone.utc
+        )
         request = RequestFactory().get("/admin/patients/visitreport/")
         request.user = Mock()
 
-        start_dt, end_dt, start_value, end_value, selected_range = _parse_report_range(request)
+        start_dt, end_dt, start_value, end_value, selected_range = _parse_report_range(
+            request
+        )
 
         self.assertEqual(selected_range, "custom")
         self.assertEqual(end_dt, mocked_now.return_value)
-        self.assertEqual(start_dt, mocked_now.return_value - timezone.timedelta(hours=3))
-        self.assertEqual(start_value, "2026-03-21T09:00")
-        self.assertEqual(end_value, "2026-03-21T12:00")
+        self.assertEqual(
+            start_dt, mocked_now.return_value - timezone.timedelta(hours=3)
+        )
+        self.assertEqual(start_value, "۱۴۰۵/۰۱/۰۱ ۰۹:۰۰")
+        self.assertEqual(end_value, "۱۴۰۵/۰۱/۰۱ ۱۲:۰۰")
 
     @patch("patients.admin.timezone.now")
     def test_visit_report_today_shortcut_uses_tehran_day(self, mocked_now):
         from .admin import _parse_report_range
         from django.test import RequestFactory
 
-        mocked_now.return_value = datetime(2026, 3, 21, 8, 30, tzinfo=datetime_timezone.utc)
-        request = RequestFactory().get("/admin/patients/visitreport/", {"range": "today"})
+        mocked_now.return_value = datetime(
+            2026, 3, 21, 8, 30, tzinfo=datetime_timezone.utc
+        )
+        request = RequestFactory().get(
+            "/admin/patients/visitreport/", {"range": "today"}
+        )
         request.user = Mock()
 
-        start_dt, end_dt, _start_value, _end_value, selected_range = _parse_report_range(request)
+        start_dt, end_dt, _start_value, _end_value, selected_range = (
+            _parse_report_range(request)
+        )
 
         self.assertEqual(selected_range, "today")
         self.assertEqual(format_tehran_jalali(start_dt), "۱۴۰۵/۰۱/۰۱ ۰۰:۰۰:۰۰")
@@ -1123,7 +1241,9 @@ class VisitAnalyticsTests(TestCase):
         self.assertEqual(list(summary["daily_counts"].keys()), ["۱۴۰۵/۰۱/۰۱"])
 
     def test_visit_report_template_contains_shortcuts_and_print_button(self):
-        user = get_user_model().objects.create_superuser("admin", "admin@example.com", "pass")
+        user = get_user_model().objects.create_superuser(
+            "admin", "admin@example.com", "pass"
+        )
         self.client.force_login(user)
 
         response = self.client.get(reverse("admin:patients_visitreport_changelist"))
@@ -1135,3 +1255,20 @@ class VisitAnalyticsTests(TestCase):
         self.assertContains(response, "گزارش کل")
         self.assertContains(response, "window.print()")
         self.assertContains(response, "بازه گزارش:")
+        self.assertContains(response, 'type="text" name="start_date"')
+        self.assertContains(response, "فرمت نمونه: ۱۴۰۵/۰۴/۰۵ ۰۹:۰۰")
+        self.assertNotContains(response, 'type="datetime-local"')
+
+    def test_visit_report_today_shortcut_renders_without_admin_lookup_errors(self):
+        user = get_user_model().objects.create_superuser(
+            "range-admin", "range@example.com", "pass"
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(
+            reverse("admin:patients_visitreport_changelist"), {"range": "today"}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'href="?range=today"')
+        self.assertContains(response, 'href="export-pdf/?range=today"')

@@ -24,10 +24,11 @@
     <a class="button{% if selected_range == 'all' %} active{% endif %}" href="?range=all">گزارش کل</a>
   </div>
   <form method="get" class="visit-report-toolbar visit-report-no-print">
-    <label>از تاریخ/زمان <input type="datetime-local" name="start_date" value="{{ start_value }}"></label>
-    <label>تا تاریخ/زمان <input type="datetime-local" name="end_date" value="{{ end_value }}"></label>
+    <label>از تاریخ/زمان <input type="text" name="start_date" value="{{ start_value }}" placeholder="۱۴۰۵/۰۴/۰۵ ۰۹:۰۰" dir="ltr" inputmode="numeric"></label>
+    <label>تا تاریخ/زمان <input type="text" name="end_date" value="{{ end_value }}" placeholder="۱۴۰۵/۰۴/۰۵ ۰۹:۰۰" dir="ltr" inputmode="numeric"></label>
+    <span style="align-self:center;color:#666;">فرمت نمونه: ۱۴۰۵/۰۴/۰۵ ۰۹:۰۰</span>
     <button type="submit" class="button">نمایش خلاصه</button>
-    <a class="button" href="{{ export_url }}?start_date={{ start_value|urlencode }}&end_date={{ end_value|urlencode }}">دانلود گزارش PDF جزئیات</a>
+    <a class="button" href="{{ export_url }}{% if export_query_string %}?{{ export_query_string }}{% else %}?start_date={{ start_value|urlencode }}&end_date={{ end_value|urlencode }}{% endif %}">دانلود گزارش PDF جزئیات</a>
     <button type="button" class="button" onclick="window.print()">پرینت گزارش</button>
   </form>
   <div class="visit-report-cards">

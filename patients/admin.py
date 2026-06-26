@@ -10,12 +10,12 @@ from bidi.algorithm import get_display
 from django import forms
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied
 from django.http import FileResponse
+from django.template.response import TemplateResponse
 from django.conf import settings
 from django.contrib import admin, messages
 from django.db.models import Exists, OuterRef
 from django.urls import path
 from django.utils import timezone
-from django.utils.dateparse import parse_datetime
 from django.utils.html import format_html, format_html_join
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT
@@ -27,7 +27,12 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from arabic_reshaper import reshape
 
-from .datetime import format_tehran_jalali, to_persian_digits
+from .datetime import (
+    format_tehran_jalali,
+    format_tehran_jalali_input,
+    parse_tehran_jalali_datetime,
+    to_persian_digits,
+)
 from .analytics import get_visit_report_queryset, get_visit_report_summary
 from .models import SMSMessageLog, Patient, VisitEvent, VisitReport
 from .sms import build_patient_name_token, send_done_sms
@@ -68,7 +73,7 @@ VISIT_REPORT_PRESETS = {"today", "yesterday", "week", "month", "all"}
 
 
 def _datetime_local_value(value):
-    return timezone.localtime(value).strftime("%Y-%m-%dT%H:%M")
+    return format_tehran_jalali_input(value)
 
 
 def _tehran_day_bounds(value):
@@ -94,18 +99,38 @@ def _parse_report_range(request):
             start_dt, end_dt = now - timezone.timedelta(days=30), now
         else:
             start_dt, end_dt = datetime(1970, 1, 1, tzinfo=datetime_timezone.utc), now
-        return start_dt, end_dt, _datetime_local_value(start_dt), _datetime_local_value(end_dt), preset
+        return (
+            start_dt,
+            end_dt,
+            format_tehran_jalali_input(start_dt),
+            format_tehran_jalali_input(end_dt),
+            preset,
+        )
 
     default_start = now - timezone.timedelta(hours=3)
-    start_value = request.GET.get("start_date") or _datetime_local_value(default_start)
-    end_value = request.GET.get("end_date") or _datetime_local_value(now)
-    start_dt = parse_datetime(start_value) or datetime.fromisoformat(start_value)
-    end_dt = parse_datetime(end_value) or datetime.fromisoformat(end_value)
-    if timezone.is_naive(start_dt):
-        start_dt = timezone.make_aware(start_dt)
-    if timezone.is_naive(end_dt):
-        end_dt = timezone.make_aware(end_dt)
-    return start_dt, end_dt, start_value, end_value, "custom"
+    raw_start_value = request.GET.get("start_date")
+    raw_end_value = request.GET.get("end_date")
+    if not raw_start_value and not raw_end_value:
+        return (
+            default_start,
+            now,
+            format_tehran_jalali_input(default_start),
+            format_tehran_jalali_input(now),
+            "custom",
+        )
+
+    if not raw_start_value or not raw_end_value:
+        raise ValueError("Both start_date and end_date are required.")
+
+    start_dt = parse_tehran_jalali_datetime(raw_start_value)
+    end_dt = parse_tehran_jalali_datetime(raw_end_value)
+    return (
+        start_dt,
+        end_dt,
+        format_tehran_jalali_input(start_dt),
+        format_tehran_jalali_input(end_dt),
+        "custom",
+    )
 
 
 def build_visit_events_pdf(events, summary, start_datetime, end_datetime):
@@ -120,31 +145,131 @@ def build_visit_events_pdf(events, summary, start_datetime, end_datetime):
         bottomMargin=1 * cm,
         title="گزارش بازدید سایت",
     )
-    title_style = ParagraphStyle("VisitTitle", fontName=PDF_FONT_BOLD_NAME, fontSize=16, alignment=TA_CENTER, leading=24, spaceAfter=10)
-    cell_style = ParagraphStyle("VisitCell", fontName=PDF_FONT_NAME, fontSize=8, alignment=TA_RIGHT, leading=12)
-    header_style = ParagraphStyle("VisitHeader", parent=cell_style, fontName=PDF_FONT_BOLD_NAME)
+    title_style = ParagraphStyle(
+        "VisitTitle",
+        fontName=PDF_FONT_BOLD_NAME,
+        fontSize=16,
+        alignment=TA_CENTER,
+        leading=24,
+        spaceAfter=10,
+    )
+    cell_style = ParagraphStyle(
+        "VisitCell", fontName=PDF_FONT_NAME, fontSize=8, alignment=TA_RIGHT, leading=12
+    )
+    header_style = ParagraphStyle(
+        "VisitHeader", parent=cell_style, fontName=PDF_FONT_BOLD_NAME
+    )
     story = [
         Paragraph(_rtl_text("گزارش بازدید سایت"), title_style),
-        Paragraph(_rtl_text(f"از {format_tehran_jalali(start_datetime)} تا {format_tehran_jalali(end_datetime)}"), cell_style),
+        Paragraph(
+            _rtl_text(
+                f"از {format_tehran_jalali(start_datetime)} تا {format_tehran_jalali(end_datetime)}"
+            ),
+            cell_style,
+        ),
         Spacer(1, 0.2 * cm),
     ]
-    summary_rows = [[Paragraph(_rtl_text(label), header_style), Paragraph(_rtl_text(value), cell_style)] for label, value in (
-        ("تعداد کل رویدادها", summary["total_events"]), ("کاربران یکتا", summary["unique_visitors"]),
-        ("مشاهده فرم", summary["form_views"]), ("تلاش ثبت‌نام", summary["submit_attempts"]),
-        ("ثبت‌نام موفق", summary["successful_registrations"]), ("ثبت‌نام ناموفق", summary["invalid_submits"] + summary["error_submits"]),
-    )]
-    story.append(Table(summary_rows, colWidths=[5 * cm, 3 * cm], style=TableStyle([("GRID", (0,0), (-1,-1), 0.5, colors.HexColor("#BFC9D1")), ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#EAF2F8"))])))
+    summary_rows = [
+        [
+            Paragraph(_rtl_text(label), header_style),
+            Paragraph(_rtl_text(value), cell_style),
+        ]
+        for label, value in (
+            ("تعداد کل رویدادها", summary["total_events"]),
+            ("کاربران یکتا", summary["unique_visitors"]),
+            ("مشاهده فرم", summary["form_views"]),
+            ("تلاش ثبت‌نام", summary["submit_attempts"]),
+            ("ثبت‌نام موفق", summary["successful_registrations"]),
+            ("ثبت‌نام ناموفق", summary["invalid_submits"] + summary["error_submits"]),
+        )
+    ]
+    story.append(
+        Table(
+            summary_rows,
+            colWidths=[5 * cm, 3 * cm],
+            style=TableStyle(
+                [
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#BFC9D1")),
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#EAF2F8")),
+                ]
+            ),
+        )
+    )
     max_events = VISIT_REPORT_PDF_MAX_EVENTS
     total = summary["total_events"]
     if total > max_events:
-        story += [Spacer(1, 0.2 * cm), Paragraph(_rtl_text(f"توجه: فقط {max_events} ردیف نخست از {total} رویداد نمایش داده شده است."), cell_style)]
-    rows = [[Paragraph(_rtl_text(h), header_style) for h in ["مرورگر/دستگاه", "ارجاع‌دهنده", "شناسه بازدیدکننده", "وضعیت پاسخ", "روش", "مسیر", "نوع رویداد", "زمان", "ردیف"]]]
+        story += [
+            Spacer(1, 0.2 * cm),
+            Paragraph(
+                _rtl_text(
+                    f"توجه: فقط {max_events} ردیف نخست از {total} رویداد نمایش داده شده است."
+                ),
+                cell_style,
+            ),
+        ]
+    rows = [
+        [
+            Paragraph(_rtl_text(h), header_style)
+            for h in [
+                "مرورگر/دستگاه",
+                "ارجاع‌دهنده",
+                "شناسه بازدیدکننده",
+                "وضعیت پاسخ",
+                "روش",
+                "مسیر",
+                "نوع رویداد",
+                "زمان",
+                "ردیف",
+            ]
+        ]
+    ]
     for index, event in enumerate(events[:max_events], start=1):
-        rows.append([Paragraph(_rtl_text(v), cell_style) for v in [
-            _shorten(event.user_agent, 34), _shorten(event.referrer, 28), str(event.visitor_id)[:8], event.status_code or "-", event.method,
-            _shorten(event.path, 25), event.get_event_type_display(), format_tehran_jalali(event.created_at), index]])
-    table = Table(rows, repeatRows=1, colWidths=[4.0*cm, 3.2*cm, 2.1*cm, 1.6*cm, 1.3*cm, 3.0*cm, 2.8*cm, 3.4*cm, 1.1*cm])
-    table.setStyle(TableStyle([("BACKGROUND", (0,0), (-1,0), colors.HexColor("#EAF2F8")), ("GRID", (0,0), (-1,-1), 0.4, colors.HexColor("#BFC9D1")), ("VALIGN", (0,0), (-1,-1), "MIDDLE"), ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.white, colors.HexColor("#F8FAFC")])]))
+        rows.append(
+            [
+                Paragraph(_rtl_text(v), cell_style)
+                for v in [
+                    _shorten(event.user_agent, 34),
+                    _shorten(event.referrer, 28),
+                    str(event.visitor_id)[:8],
+                    event.status_code or "-",
+                    event.method,
+                    _shorten(event.path, 25),
+                    event.get_event_type_display(),
+                    format_tehran_jalali(event.created_at),
+                    index,
+                ]
+            ]
+        )
+    table = Table(
+        rows,
+        repeatRows=1,
+        colWidths=[
+            4.0 * cm,
+            3.2 * cm,
+            2.1 * cm,
+            1.6 * cm,
+            1.3 * cm,
+            3.0 * cm,
+            2.8 * cm,
+            3.4 * cm,
+            1.1 * cm,
+        ],
+    )
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#EAF2F8")),
+                ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#BFC9D1")),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                (
+                    "ROWBACKGROUNDS",
+                    (0, 1),
+                    (-1, -1),
+                    [colors.white, colors.HexColor("#F8FAFC")],
+                ),
+            ]
+        )
+    )
     story += [Spacer(1, 0.3 * cm), table]
     document.build(story)
     buffer.seek(0)
@@ -617,21 +742,31 @@ class VisitReportAdmin(admin.ModelAdmin):
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
-            path("export-pdf/", self.admin_site.admin_view(self.export_pdf), name="patients_visitreport_export_pdf"),
+            path(
+                "export-pdf/",
+                self.admin_site.admin_view(self.export_pdf),
+                name="patients_visitreport_export_pdf",
+            ),
         ]
         return custom_urls + urls
 
     def changelist_view(self, request, extra_context=None):
         try:
-            start_dt, end_dt, start_value, end_value, selected_range = _parse_report_range(request)
+            start_dt, end_dt, start_value, end_value, selected_range = (
+                _parse_report_range(request)
+            )
         except (TypeError, ValueError):
             now = timezone.now()
             start_dt = now - timezone.timedelta(hours=3)
             end_dt = now
-            start_value = _datetime_local_value(start_dt)
-            end_value = _datetime_local_value(end_dt)
+            start_value = format_tehran_jalali_input(start_dt)
+            end_value = format_tehran_jalali_input(end_dt)
             selected_range = "custom"
-            self.message_user(request, "بازه زمانی نامعتبر بود؛ بازه پیش‌فرض نمایش داده شد.", messages.WARNING)
+            self.message_user(
+                request,
+                "بازه زمانی نامعتبر بود؛ بازه پیش‌فرض نمایش داده شد.",
+                messages.WARNING,
+            )
         queryset = get_visit_report_queryset(start_dt, end_dt)
         summary = get_visit_report_summary(queryset)
         cards = [
@@ -641,7 +776,12 @@ class VisitReportAdmin(admin.ModelAdmin):
             ("مشاهده فرم", to_persian_digits(summary["form_views"])),
             ("تلاش ثبت‌نام", to_persian_digits(summary["submit_attempts"])),
             ("ثبت‌نام موفق", to_persian_digits(summary["successful_registrations"])),
-            ("ثبت‌نام ناموفق", to_persian_digits(summary["invalid_submits"] + summary["error_submits"])),
+            (
+                "ثبت‌نام ناموفق",
+                to_persian_digits(
+                    summary["invalid_submits"] + summary["error_submits"]
+                ),
+            ),
         ]
         context = {
             **(extra_context or {}),
@@ -653,20 +793,41 @@ class VisitReportAdmin(admin.ModelAdmin):
             "export_url": "export-pdf/",
             "selected_range": selected_range,
             "range_label": f"از {format_tehran_jalali(start_dt)} تا {format_tehran_jalali(end_dt)}",
+            "export_query_string": request.GET.urlencode(),
         }
-        return super().changelist_view(request, context)
+        context.update(
+            self.admin_site.each_context(request),
+            opts=self.model._meta,
+            has_view_permission=self.has_view_permission(request),
+            has_add_permission=self.has_add_permission(request),
+            has_change_permission=self.has_change_permission(request),
+            has_delete_permission=self.has_delete_permission(request),
+            media=self.media,
+        )
+        return TemplateResponse(request, self.change_list_template, context)
 
     def export_pdf(self, request):
         if not self.has_view_permission(request):
             raise PermissionDenied
         try:
-            start_dt, end_dt, _start_value, _end_value, _selected_range = _parse_report_range(request)
+            start_dt, end_dt, _start_value, _end_value, _selected_range = (
+                _parse_report_range(request)
+            )
         except (TypeError, ValueError):
             self.message_user(request, "بازه زمانی گزارش نامعتبر است.", messages.ERROR)
             return self.changelist_view(request)
         queryset = get_visit_report_queryset(start_dt, end_dt).order_by("-created_at")
         summary = get_visit_report_summary(queryset)
         if summary["total_events"] > VISIT_REPORT_PDF_MAX_EVENTS:
-            self.message_user(request, f"گزارش PDF به {VISIT_REPORT_PDF_MAX_EVENTS} ردیف محدود شد.", messages.WARNING)
+            self.message_user(
+                request,
+                f"گزارش PDF به {VISIT_REPORT_PDF_MAX_EVENTS} ردیف محدود شد.",
+                messages.WARNING,
+            )
         pdf_buffer = build_visit_events_pdf(queryset, summary, start_dt, end_dt)
-        return FileResponse(pdf_buffer, as_attachment=True, filename="visit-events-report.pdf", content_type="application/pdf")
+        return FileResponse(
+            pdf_buffer,
+            as_attachment=True,
+            filename="visit-events-report.pdf",
+            content_type="application/pdf",
+        )
