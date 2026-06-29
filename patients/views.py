@@ -1,6 +1,9 @@
+import json
+
 from django.conf import settings
 from django.contrib import messages
 from django.db import DatabaseError, IntegrityError, transaction
+from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.templatetags.static import static
 
@@ -14,10 +17,11 @@ from .models import Patient, VisitEvent
 
 SAVE_ERROR = "در ذخیره‌سازی اطلاعات مشکلی رخ داد. لطفاً دوباره تلاش کنید."
 SITE_NAME = "سامانه ثبت نام پزشک خانواده دکتر حسین شبانی"
-SHARE_TITLE = SITE_NAME
+CANONICAL_URL = "https://register.helssa.ir/"
+SHARE_TITLE = "ثبت‌نام پزشک خانواده صغاد | دکتر حسین شبانی | درمانگاه ولیعصر"
 SHARE_DESCRIPTION = (
-    "ثبت‌نام اینترنتی طرح پزشک خانواده دکتر حسین شبانی در درمانگاه ولیعصر صغاد؛ "
-    "خدمات درمانی با تعرفه دولتی، پیگیری سلامت خانواده و پاسخگویی آنلاین."
+    "ثبت‌نام اینترنتی پزشک خانواده دکتر حسین شبانی در درمانگاه ولیعصر صغاد؛ "
+    "تعرفه دولتی، پیگیری سلامت خانواده و پاسخگویی آنلاین برای ثبت‌نام‌شدگان."
 )
 SHARE_IMAGE_PATH = "patients/images/share-logo.png"
 SITE_LOGO_PATH = "patients/images/site-logo.png"
@@ -47,6 +51,32 @@ def _absolute_static_url(request, path):
     return request.build_absolute_uri(static_url)
 
 
+def robots_txt(request):
+    """Serve crawl instructions for search engines."""
+
+    return HttpResponse(
+        "User-agent: *\nAllow: /\nSitemap: https://register.helssa.ir/sitemap.xml\n",
+        content_type="text/plain; charset=utf-8",
+    )
+
+
+def sitemap_xml(request):
+    """Expose the canonical public landing page in an XML sitemap."""
+
+    return HttpResponse(
+        """<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://register.helssa.ir/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>
+""",
+        content_type="application/xml; charset=utf-8",
+    )
+
+
 def register_patient(request):
     """Display and process the patient registration form."""
 
@@ -73,7 +103,9 @@ def register_patient(request):
                 )
                 form.add_error(None, SAVE_ERROR)
             else:
-                _log_analytics(request, VisitEvent.EVENT_FORM_SUBMIT_SUCCESS, patient=patient)
+                _log_analytics(
+                    request, VisitEvent.EVENT_FORM_SUBMIT_SUCCESS, patient=patient
+                )
                 messages.success(request, "ثبت‌نام شما با موفقیت انجام شد.")
                 return redirect("patients:register")
         else:
@@ -89,8 +121,12 @@ def register_patient(request):
         "site_name": SITE_NAME,
         "title": SHARE_TITLE,
         "description": SHARE_DESCRIPTION,
-        "url": request.build_absolute_uri(request.path),
-        "image": _absolute_static_url(request, SHARE_IMAGE_PATH),
+        "url": CANONICAL_URL,
+        "image": (
+            _absolute_static_url(request, SHARE_IMAGE_PATH)
+            if _static_source_exists(SHARE_IMAGE_PATH)
+            else ""
+        ),
         "image_width": "1200",
         "image_height": "630",
     }
@@ -100,6 +136,25 @@ def register_patient(request):
             "url": _absolute_static_url(request, SITE_LOGO_PATH),
             "alt": f"لوگوی {SITE_NAME}",
         }
+
+    structured_data = {
+        "@context": "https://schema.org",
+        "@type": "MedicalClinic",
+        "name": "درمانگاه ولیعصر صغاد - پزشک خانواده دکتر حسین شبانی",
+        "url": CANONICAL_URL,
+        "areaServed": "صغاد، آباده، فارس",
+        "medicalSpecialty": "PrimaryCare",
+        "description": SHARE_DESCRIPTION,
+        "physician": {
+            "@type": "Physician",
+            "name": "دکتر حسین شبانی",
+        },
+        "employee": {
+            "@type": "Person",
+            "name": "دکتر حسین شبانی",
+        },
+        "inLanguage": "fa-IR",
+    }
 
     registered_count = Patient.objects.count()
     stats = {
@@ -115,6 +170,9 @@ def register_patient(request):
             "share_meta": share_meta,
             "site_logo": site_logo,
             "stats": stats,
+            "structured_data_json": json.dumps(
+                structured_data, ensure_ascii=False
+            ).replace("</", "<\\/"),
         },
     )
 

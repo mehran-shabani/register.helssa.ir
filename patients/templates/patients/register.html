@@ -23,19 +23,25 @@
     <meta property="og:title" content="{{ share_meta.title }}">
     <meta property="og:description" content="{{ share_meta.description }}">
     <meta property="og:url" content="{{ share_meta.url }}">
-    <meta property="og:image" content="{{ share_meta.image }}">
-    <meta property="og:image:type" content="image/png">
-    <meta property="og:image:width" content="{{ share_meta.image_width }}">
-    <meta property="og:image:height" content="{{ share_meta.image_height }}">
+    {% if share_meta.image %}
+        <meta property="og:image" content="{{ share_meta.image }}">
+        <meta property="og:image:type" content="image/png">
+        <meta property="og:image:width" content="{{ share_meta.image_width }}">
+        <meta property="og:image:height" content="{{ share_meta.image_height }}">
+    {% endif %}
 
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="{{ share_meta.title }}">
     <meta name="twitter:description" content="{{ share_meta.description }}">
-    <meta name="twitter:image" content="{{ share_meta.image }}">
+    {% if share_meta.image %}
+        <meta name="twitter:image" content="{{ share_meta.image }}">
+    {% endif %}
 
     {% if site_logo %}
         <link rel="icon" type="image/png" href="{{ site_logo.url }}">
     {% endif %}
+
+    <script type="application/ld+json">{{ structured_data_json|safe }}</script>
 
     <link rel="stylesheet" href="{% static 'patients/css/style.css' %}">
 </head>
@@ -54,7 +60,7 @@
 
             <p class="hero__lead reveal reveal--delay-3">
                 طرح جذب جمعیت پزشک خانواده در درمانگاه ولیعصر صغاد فعال شده است؛
-                ثبت‌نام اینترنتی انجام دهید تا درمانگاه برای تکمیل فرآیند با شما تماس بگیرد.
+                ثبت‌نام اینترنتی پزشک خانواده صغاد را انجام دهید تا درمانگاه برای تکمیل فرآیند با شما تماس بگیرد.
             </p>
 
             <div class="hero__actions reveal reveal--delay-4" aria-label="اقدام سریع">
@@ -90,7 +96,7 @@
                 <p class="eyebrow">چرا دکتر شبانی؟</p>
                 <h2 id="promo-title">خدمات منظم‌تر، هزینه کمتر، پیگیری واقعی سلامت خانواده</h2>
                 <p>
-                    با ثبت‌نام در طرح پزشک خانواده دکتر حسین شبانی شهرضا، دسترسی شما به خدمات درمانی
+                    با ثبت‌نام در طرح پزشک خانواده دکتر حسین شبانی، دسترسی شما به خدمات درمانی
                     درمانگاه ولیعصر صغاد ساده‌تر و قابل پیگیری‌تر می‌شود.
                 </p>
             </div>

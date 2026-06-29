@@ -33,6 +33,7 @@ from .forms import (
 )
 from .views import (
     COMMUNITY_BASE_COUNT,
+    CANONICAL_URL,
     SHARE_DESCRIPTION,
     SHARE_IMAGE_PATH,
     SHARE_TITLE,
@@ -742,8 +743,9 @@ class RegisterPatientViewTests(TestCase):
             f'<meta property="og:description" content="{SHARE_DESCRIPTION}">',
         )
         self.assertContains(
-            response, '<meta property="og:url" content="http://testserver/">'
+            response, f'<meta property="og:url" content="{CANONICAL_URL}">'
         )
+        self.assertContains(response, f'<link rel="canonical" href="{CANONICAL_URL}">')
         self.assertContains(
             response, f'<meta property="og:image" content="{share_image_url}">'
         )
@@ -756,6 +758,37 @@ class RegisterPatientViewTests(TestCase):
         self.assertContains(
             response, f'<meta name="twitter:image" content="{share_image_url}">'
         )
+        self.assertContains(response, '<script type="application/ld+json">')
+        self.assertContains(response, '"@type": "MedicalClinic"')
+        self.assertContains(
+            response, "درمانگاه ولیعصر صغاد - پزشک خانواده دکتر حسین شبانی"
+        )
+
+    def test_register_alias_redirects_permanently_to_canonical_home(self):
+        response = self.client.get(reverse("patients:register_patient"))
+
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response["Location"], "/")
+
+    def test_robots_txt_allows_site_and_points_to_sitemap(self):
+        response = self.client.get(reverse("patients:robots_txt"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/plain; charset=utf-8")
+        content = response.content.decode()
+        self.assertIn("User-agent: *", content)
+        self.assertIn("Allow: /", content)
+        self.assertIn("Sitemap: https://register.helssa.ir/sitemap.xml", content)
+
+    def test_sitemap_xml_contains_only_canonical_homepage(self):
+        response = self.client.get(reverse("patients:sitemap_xml"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/xml; charset=utf-8")
+        self.assertContains(response, f"<loc>{CANONICAL_URL}</loc>")
+        self.assertContains(response, "<changefreq>weekly</changefreq>")
+        self.assertContains(response, "<priority>1.0</priority>")
+        self.assertNotContains(response, "/register/")
 
     def test_logo_instructions_document_required_image_files(self):
         instructions = Path("logo.md").read_text(encoding="utf-8")
@@ -1013,19 +1046,13 @@ class VisitAnalyticsTests(TestCase):
         )
         self.assertIn("helssa_vid", response.cookies)
 
-    def test_get_register_alias_creates_form_view_event(self):
+    def test_get_register_alias_redirect_does_not_create_duplicate_visit_event(self):
         from .models import VisitEvent
 
         response = self.client.get(reverse("patients:register_patient"))
 
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            VisitEvent.objects.filter(
-                event_type=VisitEvent.EVENT_FORM_VIEW, path="/register/"
-            ).count(),
-            1,
-        )
-        self.assertIn("helssa_vid", response.cookies)
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(VisitEvent.objects.count(), 0)
 
     def test_invalid_post_creates_attempt_and_invalid_events_without_values(self):
         from .models import VisitEvent
@@ -1295,14 +1322,17 @@ class VisitAnalyticsTests(TestCase):
         self.assertContains(response, 'href="?range=today"')
         self.assertContains(response, 'href="export-pdf/?range=today"')
 
+
 class VisitAnalyticsEnhancedTests(TestCase):
     def test_masked_ip_for_ipv4_masks_last_octet(self):
         from .analytics import mask_ip
+
         self.assertEqual(mask_ip("5.122.34.77"), "5.122.34.xxx")
 
     @override_settings(ANALYTICS_STORE_RAW_IP=False)
     def test_raw_ip_is_not_saved_when_disabled(self):
         from .models import VisitEvent
+
         self.client.get(reverse("patients:register"), REMOTE_ADDR="5.122.34.77")
         event = VisitEvent.objects.get()
         self.assertIsNone(event.ip_address)
@@ -1311,23 +1341,32 @@ class VisitAnalyticsEnhancedTests(TestCase):
     @override_settings(ANALYTICS_STORE_RAW_IP=True)
     def test_raw_ip_is_saved_when_enabled(self):
         from .models import VisitEvent
+
         self.client.get(reverse("patients:register"), REMOTE_ADDR="5.122.34.77")
         self.assertEqual(str(VisitEvent.objects.get().ip_address), "5.122.34.77")
 
     def test_utm_source_and_campaign_are_saved_from_url(self):
         from .models import VisitEvent
-        self.client.get(reverse("patients:register") + "?utm_source=telegram&utm_campaign=summer")
+
+        self.client.get(
+            reverse("patients:register") + "?utm_source=telegram&utm_campaign=summer"
+        )
         event = VisitEvent.objects.get()
         self.assertEqual(event.utm_source, "telegram")
         self.assertEqual(event.utm_campaign, "summer")
 
     def test_mobile_user_agent_sets_device_type_mobile(self):
         from .models import VisitEvent
-        self.client.get(reverse("patients:register"), HTTP_USER_AGENT="Mozilla/5.0 (iPhone; CPU iPhone OS) Mobile Safari/604.1")
+
+        self.client.get(
+            reverse("patients:register"),
+            HTTP_USER_AGENT="Mozilla/5.0 (iPhone; CPU iPhone OS) Mobile Safari/604.1",
+        )
         self.assertEqual(VisitEvent.objects.get().device_type, "mobile")
 
     def test_bot_user_agent_sets_is_bot_true(self):
         from .models import VisitEvent
+
         self.client.get(reverse("patients:register"), HTTP_USER_AGENT="Googlebot/2.1")
         event = VisitEvent.objects.get()
         self.assertTrue(event.is_bot)
@@ -1336,8 +1375,21 @@ class VisitAnalyticsEnhancedTests(TestCase):
     def test_summary_calculates_conversion_rate(self):
         from .analytics import get_visit_report_summary
         from .models import VisitEvent
-        for index, event_type in enumerate([VisitEvent.EVENT_FORM_VIEW, VisitEvent.EVENT_FORM_VIEW, VisitEvent.EVENT_FORM_SUBMIT_ATTEMPT, VisitEvent.EVENT_FORM_SUBMIT_SUCCESS]):
-            VisitEvent.objects.create(visitor_id=f"00000000-0000-0000-0000-00000000000{index+1}", event_type=event_type, method="GET", path="/")
+
+        for index, event_type in enumerate(
+            [
+                VisitEvent.EVENT_FORM_VIEW,
+                VisitEvent.EVENT_FORM_VIEW,
+                VisitEvent.EVENT_FORM_SUBMIT_ATTEMPT,
+                VisitEvent.EVENT_FORM_SUBMIT_SUCCESS,
+            ]
+        ):
+            VisitEvent.objects.create(
+                visitor_id=f"00000000-0000-0000-0000-00000000000{index+1}",
+                event_type=event_type,
+                method="GET",
+                path="/",
+            )
         summary = get_visit_report_summary(VisitEvent.objects.all())
         self.assertEqual(summary["conversion_rate"], 50.0)
         self.assertEqual(summary["submit_success_rate"], 100.0)
@@ -1345,40 +1397,93 @@ class VisitAnalyticsEnhancedTests(TestCase):
     @override_settings(ANALYTICS_SHOW_RAW_IP_TO_SUPERUSER=True)
     def test_admin_report_superuser_can_see_raw_ip_when_allowed(self):
         from .models import VisitEvent
-        user = get_user_model().objects.create_superuser("raw-admin", "raw@example.com", "pass")
+
+        user = get_user_model().objects.create_superuser(
+            "raw-admin", "raw@example.com", "pass"
+        )
         self.client.force_login(user)
-        VisitEvent.objects.create(visitor_id="00000000-0000-0000-0000-000000000001", event_type=VisitEvent.EVENT_FORM_VIEW, method="GET", path="/", masked_ip="5.122.34.xxx", ip_address="5.122.34.77")
-        response = self.client.get(reverse("admin:patients_visitreport_changelist"), {"range": "all"})
+        VisitEvent.objects.create(
+            visitor_id="00000000-0000-0000-0000-000000000001",
+            event_type=VisitEvent.EVENT_FORM_VIEW,
+            method="GET",
+            path="/",
+            masked_ip="5.122.34.xxx",
+            ip_address="5.122.34.77",
+        )
+        response = self.client.get(
+            reverse("admin:patients_visitreport_changelist"), {"range": "all"}
+        )
         self.assertContains(response, "5.122.34.77")
 
     @override_settings(ANALYTICS_SHOW_RAW_IP_TO_SUPERUSER=True)
     def test_admin_report_staff_cannot_see_raw_ip(self):
         from .models import VisitEvent
-        user = get_user_model().objects.create_user("staff", "staff@example.com", "pass", is_staff=True)
+
+        user = get_user_model().objects.create_user(
+            "staff", "staff@example.com", "pass", is_staff=True
+        )
         user.user_permissions.add(*[])
         user.is_superuser = False
         user.save()
         self.client.force_login(user)
-        VisitEvent.objects.create(visitor_id="00000000-0000-0000-0000-000000000001", event_type=VisitEvent.EVENT_FORM_VIEW, method="GET", path="/", masked_ip="5.122.34.xxx", ip_address="5.122.34.77")
-        response = self.client.get(reverse("admin:patients_visitreport_changelist"), {"range": "all"})
+        VisitEvent.objects.create(
+            visitor_id="00000000-0000-0000-0000-000000000001",
+            event_type=VisitEvent.EVENT_FORM_VIEW,
+            method="GET",
+            path="/",
+            masked_ip="5.122.34.xxx",
+            ip_address="5.122.34.77",
+        )
+        response = self.client.get(
+            reverse("admin:patients_visitreport_changelist"), {"range": "all"}
+        )
         self.assertNotContains(response, "5.122.34.77")
         self.assertContains(response, "5.122.34.xxx")
 
     def test_export_csv_respects_filters(self):
         from .models import VisitEvent
-        user = get_user_model().objects.create_superuser("csv-admin", "csv@example.com", "pass")
+
+        user = get_user_model().objects.create_superuser(
+            "csv-admin", "csv@example.com", "pass"
+        )
         self.client.force_login(user)
-        VisitEvent.objects.create(visitor_id="00000000-0000-0000-0000-000000000001", event_type=VisitEvent.EVENT_FORM_VIEW, method="GET", path="/", device_type="mobile")
-        VisitEvent.objects.create(visitor_id="00000000-0000-0000-0000-000000000002", event_type=VisitEvent.EVENT_FORM_VIEW, method="GET", path="/", device_type="desktop")
-        response = self.client.get(reverse("admin:patients_visitreport_export_csv"), {"range": "all", "device_type": "mobile"})
+        VisitEvent.objects.create(
+            visitor_id="00000000-0000-0000-0000-000000000001",
+            event_type=VisitEvent.EVENT_FORM_VIEW,
+            method="GET",
+            path="/",
+            device_type="mobile",
+        )
+        VisitEvent.objects.create(
+            visitor_id="00000000-0000-0000-0000-000000000002",
+            event_type=VisitEvent.EVENT_FORM_VIEW,
+            method="GET",
+            path="/",
+            device_type="desktop",
+        )
+        response = self.client.get(
+            reverse("admin:patients_visitreport_export_csv"),
+            {"range": "all", "device_type": "mobile"},
+        )
         content = response.content.decode("utf-8")
         self.assertEqual(response.status_code, 200)
         self.assertIn("mobile", content)
         self.assertNotIn("desktop", content)
 
     def test_pdf_and_csv_links_preserve_active_filters(self):
-        user = get_user_model().objects.create_superuser("link-admin", "link@example.com", "pass")
+        user = get_user_model().objects.create_superuser(
+            "link-admin", "link@example.com", "pass"
+        )
         self.client.force_login(user)
-        response = self.client.get(reverse("admin:patients_visitreport_changelist"), {"range": "all", "device_type": "mobile", "utm_source": "telegram"})
-        self.assertContains(response, "export-pdf/?range=all&amp;device_type=mobile&amp;utm_source=telegram")
-        self.assertContains(response, "export-csv/?range=all&amp;device_type=mobile&amp;utm_source=telegram")
+        response = self.client.get(
+            reverse("admin:patients_visitreport_changelist"),
+            {"range": "all", "device_type": "mobile", "utm_source": "telegram"},
+        )
+        self.assertContains(
+            response,
+            "export-pdf/?range=all&amp;device_type=mobile&amp;utm_source=telegram",
+        )
+        self.assertContains(
+            response,
+            "export-csv/?range=all&amp;device_type=mobile&amp;utm_source=telegram",
+        )
