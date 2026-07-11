@@ -8,6 +8,11 @@ app_name = "patients"
 urlpatterns = [
     path("", views.register_patient, name="register"),
     path(
+        "order/",
+        RedirectView.as_view(url="https://medogram.ir", permanent=False),
+        name="order_redirect",
+    ),
+    path(
         "register/",
         RedirectView.as_view(url="/", permanent=True, query_string=True),
         name="register_patient",

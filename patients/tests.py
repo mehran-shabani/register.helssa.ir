@@ -859,6 +859,18 @@ class RegisterPatientViewTests(TestCase):
             response, "درمانگاه ولیعصر صغاد - پزشک خانواده دکتر حسین شبانی"
         )
 
+    def test_order_redirects_temporarily_to_medogram(self):
+        response = self.client.get("/order/")
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], "https://medogram.ir")
+
+    def test_order_without_trailing_slash_uses_append_slash_redirect(self):
+        response = self.client.get("/order")
+
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response["Location"], "/order/")
+
     def test_register_alias_redirects_permanently_to_canonical_home(self):
         response = self.client.get(reverse("patients:register_patient"))
 
