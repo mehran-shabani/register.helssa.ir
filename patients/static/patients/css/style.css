@@ -1188,6 +1188,10 @@ body > * {
     transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease, transform 180ms ease;
 }
 
+.form-card input[dir="ltr"] {
+    padding-inline-start: 1.95rem;
+}
+
 .form-card input:focus {
     border-color: var(--blue);
     background: var(--surface);
