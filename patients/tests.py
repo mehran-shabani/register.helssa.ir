@@ -1855,6 +1855,7 @@ class ApkDownloadTests(TestCase):
         response = self.client.get("/")
 
         self.assertContains(response, 'href="http://testserver/down/helssa.apk"')
+        self.assertContains(response, ">دانلود هلسا</a>")
         self.assertContains(response, 'src="http://testserver/down/helssa-qr.svg"')
 
     def test_summary_counts_apk_download_events(self):
