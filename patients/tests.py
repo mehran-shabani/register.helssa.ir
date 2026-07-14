@@ -8,6 +8,7 @@ from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.messages import get_messages
 from django.db import DatabaseError, IntegrityError
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from openpyxl import load_workbook
@@ -266,7 +267,9 @@ class KavenegarRegisterSMSTests(TestCase):
             "entries": [{"messageid": 123}],
         }
 
-        with patch("patients.sms.requests.post", return_value=kavenegar_response) as post:
+        with patch(
+            "patients.sms.requests.post", return_value=kavenegar_response
+        ) as post:
             result = send_register_sms("09123456789", "Ali_Ahmadi")
 
         self.assertEqual(result, [{"messageid": 123}])
@@ -277,7 +280,11 @@ class KavenegarRegisterSMSTests(TestCase):
         )
         self.assertEqual(
             post.call_args.kwargs["data"],
-            {"receptor": "09123456789", "template": "register-template", "token": "Ali_Ahmadi"},
+            {
+                "receptor": "09123456789",
+                "template": "register-template",
+                "token": "Ali_Ahmadi",
+            },
         )
         self.assertEqual(post.call_args.kwargs["timeout"], 7)
 
@@ -292,13 +299,19 @@ class KavenegarRegisterSMSTests(TestCase):
             "entries": [{"messageid": 456}],
         }
 
-        with patch("patients.sms.requests.post", return_value=kavenegar_response) as post:
+        with patch(
+            "patients.sms.requests.post", return_value=kavenegar_response
+        ) as post:
             result = send_done_sms("09123456789", "Ali_Ahmadi")
 
         self.assertEqual(result, [{"messageid": 456}])
         self.assertEqual(
             post.call_args.kwargs["data"],
-            {"receptor": "09123456789", "template": "done-template", "token": "Ali_Ahmadi"},
+            {
+                "receptor": "09123456789",
+                "template": "done-template",
+                "token": "Ali_Ahmadi",
+            },
         )
 
     @override_settings(KAVENEGAR_API_KEY="test-api-key", KAVENEGAR_REGISTER_TEMPLATE="")
@@ -537,9 +550,7 @@ class KavenegarRegisterSMSTests(TestCase):
             response["Content-Type"],
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
-        self.assertIn(
-            "selected-patients-report.xlsx", response["Content-Disposition"]
-        )
+        self.assertIn("selected-patients-report.xlsx", response["Content-Disposition"])
         content = b"".join(response.streaming_content)
         workbook = load_workbook(BytesIO(content))
         worksheet = workbook.active
@@ -868,7 +879,7 @@ class RegisterPatientViewTests(TestCase):
         self.assertContains(response, "شماره موبایل")
         self.assertContains(response, "ثبت اطلاعات و دریافت پیگیری درمانگاه")
         self.assertContains(response, "۰ از ۴ بخش تکمیل شده")
-        self.assertContains(response, 'data-sticky-cta')
+        self.assertContains(response, "data-sticky-cta")
 
     def test_register_template_includes_standard_copyright_footer(self):
         response = self.client.get(reverse("patients:register"))
@@ -1109,7 +1120,7 @@ class RegisterPatientViewTests(TestCase):
         self.assertContains(response, 'aria-modal="true"')
         self.assertContains(response, "message-card message-card--success")
         self.assertContains(response, 'class="message-card__icon"')
-        self.assertContains(response, 'data-dismiss-feedback')
+        self.assertContains(response, "data-dismiss-feedback")
         self.assertContains(response, 'class="feedback-dialog__button"')
         self.assertContains(response, "باشه")
         self.assertContains(response, 'class="icon icon--status"')
@@ -1575,7 +1586,9 @@ class VisitAnalyticsEnhancedTests(TestCase):
 
         self.assertEqual(mask_ip("5.122.34.77"), "5.122.34.xxx")
 
-    def test_client_engagement_endpoint_logs_allowed_event_without_sensitive_metadata(self):
+    def test_client_engagement_endpoint_logs_allowed_event_without_sensitive_metadata(
+        self,
+    ):
         response = self.client.post(
             reverse("patients:analytics_event"),
             data=json.dumps(
@@ -1874,6 +1887,89 @@ class ApkDownloadTests(TestCase):
         self.assertContains(response, "دانلود فایل APK")
         self.assertContains(response, reverse("admin_download_helssa_apk"))
 
+    def test_admin_index_exposes_apk_upload_form(self):
+        user = get_user_model().objects.create_superuser(
+            username="apk-upload-admin",
+            email="apk-upload-admin@example.com",
+            password="password",
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("admin:index"))
+
+        self.assertContains(response, "آپلود فایل APK جدید")
+        self.assertContains(response, reverse("admin_upload_helssa_apk"))
+        self.assertContains(response, 'name="apk_file"')
+
+    def test_admin_upload_endpoint_saves_file_with_configured_download_name(self):
+        from tempfile import TemporaryDirectory
+
+        user = get_user_model().objects.create_superuser(
+            username="apk-uploader",
+            email="apk-uploader@example.com",
+            password="password",
+        )
+        self.client.force_login(user)
+
+        with TemporaryDirectory() as tmpdir:
+            download_dir = Path(tmpdir) / "down"
+            apk_path = download_dir / "helssa.apk"
+            uploaded_file = SimpleUploadedFile(
+                "release-v9.apk",
+                b"uploaded-apk",
+                content_type="application/vnd.android.package-archive",
+            )
+            with override_settings(
+                APK_DOWNLOAD_PATH=apk_path,
+                APK_DOWNLOAD_DIR=download_dir,
+            ):
+                response = self.client.post(
+                    reverse("admin_upload_helssa_apk"),
+                    {"apk_file": uploaded_file},
+                    follow=True,
+                )
+
+                self.assertRedirects(response, reverse("admin:index"))
+                self.assertTrue(apk_path.exists())
+                self.assertEqual(apk_path.read_bytes(), b"uploaded-apk")
+                self.assertFalse((download_dir / "release-v9.apk").exists())
+                download_response = self.client.get(
+                    reverse("admin_download_helssa_apk")
+                )
+
+        self.assertEqual(download_response.status_code, 200)
+        self.assertIn("helssa.apk", download_response["Content-Disposition"])
+        self.assertEqual(b"".join(download_response.streaming_content), b"uploaded-apk")
+
+    def test_admin_upload_endpoint_rejects_non_apk_file(self):
+        from tempfile import TemporaryDirectory
+
+        user = get_user_model().objects.create_superuser(
+            username="apk-upload-validator",
+            email="apk-upload-validator@example.com",
+            password="password",
+        )
+        self.client.force_login(user)
+
+        with TemporaryDirectory() as tmpdir:
+            download_dir = Path(tmpdir)
+            apk_path = download_dir / "helssa.apk"
+            uploaded_file = SimpleUploadedFile("notes.txt", b"not-apk")
+            with override_settings(
+                APK_DOWNLOAD_PATH=apk_path,
+                APK_DOWNLOAD_DIR=download_dir,
+            ):
+                response = self.client.post(
+                    reverse("admin_upload_helssa_apk"),
+                    {"apk_file": uploaded_file},
+                    follow=True,
+                )
+
+        self.assertRedirects(response, reverse("admin:index"))
+        self.assertFalse(apk_path.exists())
+        messages = [message.message for message in get_messages(response.wsgi_request)]
+        self.assertIn("فقط فایل با پسوند APK قابل آپلود است.", messages)
+
     def test_admin_download_endpoint_serves_apk_with_actual_filename(self):
         from tempfile import TemporaryDirectory
 
@@ -1901,9 +1997,7 @@ class ApkDownloadTests(TestCase):
         self.assertIn("helssa-admin-release.apk", response["Content-Disposition"])
         self.assertEqual(b"".join(response.streaming_content), b"admin-apk")
         self.assertFalse(
-            VisitEvent.objects.filter(
-                event_type=VisitEvent.EVENT_APK_DOWNLOAD
-            ).exists()
+            VisitEvent.objects.filter(event_type=VisitEvent.EVENT_APK_DOWNLOAD).exists()
         )
 
     def test_qr_endpoint_returns_svg_for_download_url(self):

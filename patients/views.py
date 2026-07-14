@@ -8,7 +8,13 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db import DatabaseError, IntegrityError, transaction
-from django.http import FileResponse, Http404, HttpResponse, JsonResponse
+from django.http import (
+    FileResponse,
+    Http404,
+    HttpResponse,
+    HttpResponseRedirect,
+    JsonResponse,
+)
 from django.shortcuts import redirect, render
 from django.templatetags.static import static
 from django.urls import reverse
@@ -81,10 +87,16 @@ def get_apk_download_url(request):
     return request.build_absolute_uri(reverse("patients:download_helssa_apk"))
 
 
+def get_configured_apk_download_path():
+    """Return the exact APK path used for admin uploads and primary downloads."""
+
+    return Path(getattr(settings, "APK_DOWNLOAD_PATH", APK_DOWNLOAD_PATH))
+
+
 def get_apk_download_path():
     """Return the configured APK path, falling back to the newest APK in /down."""
 
-    configured_path = Path(getattr(settings, "APK_DOWNLOAD_PATH", APK_DOWNLOAD_PATH))
+    configured_path = get_configured_apk_download_path()
     if configured_path.exists() and configured_path.is_file():
         return configured_path
 
@@ -144,6 +156,33 @@ def admin_download_helssa_apk(request):
     return _serve_apk_file(request)
 
 
+@staff_member_required
+@require_POST
+def admin_upload_helssa_apk(request):
+    """Store an uploaded APK at the exact path served by the download endpoint."""
+
+    uploaded_file = request.FILES.get("apk_file")
+    if not uploaded_file:
+        messages.error(request, "لطفاً یک فایل APK برای آپلود انتخاب کنید.")
+        return HttpResponseRedirect(reverse("admin:index"))
+
+    if not uploaded_file.name.lower().endswith(".apk"):
+        messages.error(request, "فقط فایل با پسوند APK قابل آپلود است.")
+        return HttpResponseRedirect(reverse("admin:index"))
+
+    apk_path = get_configured_apk_download_path()
+    apk_path.parent.mkdir(parents=True, exist_ok=True)
+    with apk_path.open("wb") as destination:
+        for chunk in uploaded_file.chunks():
+            destination.write(chunk)
+
+    messages.success(
+        request,
+        f"فایل اپلیکیشن با نام {apk_path.name} ذخیره شد و از لینک دانلود فعلی در دسترس است.",
+    )
+    return HttpResponseRedirect(reverse("admin:index"))
+
+
 @require_safe
 def helssa_apk_qr_svg(request):
     """Return an SVG QR code that points to the APK download URL."""
@@ -156,9 +195,7 @@ def helssa_apk_qr_svg(request):
     )
     output = BytesIO()
     image.save(output)
-    return HttpResponse(
-        output.getvalue(), content_type="image/svg+xml; charset=utf-8"
-    )
+    return HttpResponse(output.getvalue(), content_type="image/svg+xml; charset=utf-8")
 
 
 def robots_txt(request):

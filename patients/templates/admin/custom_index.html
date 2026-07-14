@@ -8,6 +8,13 @@
     <p>
       <a class="button" href="{% url 'admin_download_helssa_apk' %}">دانلود فایل APK</a>
     </p>
+    <form action="{% url 'admin_upload_helssa_apk' %}" method="post" enctype="multipart/form-data" style="margin-top: 12px;">
+      {% csrf_token %}
+      <label for="helssa-apk-upload">آپلود فایل APK جدید</label>
+      <input id="helssa-apk-upload" type="file" name="apk_file" accept=".apk,application/vnd.android.package-archive" required>
+      <button class="button" type="submit">آپلود و جایگزینی فایل APK</button>
+    </form>
+    <p class="help">فایل آپلودی همیشه با نام ثابت مورد نیاز لینک دانلود ذخیره می‌شود.</p>
   </div>
   {{ block.super }}
 {% endblock %}
