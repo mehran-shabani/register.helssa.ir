@@ -6,3 +6,5 @@ openpyxl==3.1.5
 reportlab==5.0.0
 arabic-reshaper==3.0.1
 python-bidi==0.6.10
+
+qrcode==8.2

@@ -111,6 +111,19 @@
                 </div>
             </div>
 
+            <div class="app-download-card reveal reveal--delay-5" aria-label="دانلود اپلیکیشن هلسا">
+                <div class="app-download-card__copy">
+                    <p class="eyebrow">اپلیکیشن هلسا</p>
+                    <h2>دانلود مستقیم فایل اندروید</h2>
+                    <p>برای نصب اپلیکیشن، لینک دانلود را باز کنید یا QR code را با دوربین گوشی اسکن کنید.</p>
+                    <a class="app-download-card__button" href="{{ apk_download.url }}" download>دانلود {{ apk_download.filename }}</a>
+                </div>
+                <a class="app-download-card__qr" href="{{ apk_download.url }}" aria-label="اسکن QR code دانلود اپلیکیشن">
+                    <img src="{{ apk_download.qr_url }}" alt="QR code دانلود اپلیکیشن هلسا" width="152" height="152">
+                    <span>اسکن برای دانلود</span>
+                </a>
+            </div>
+
         </section>
 
         <section class="urgency-strip reveal reveal--delay-6" aria-labelledby="urgency-title" data-track-section="why-now">

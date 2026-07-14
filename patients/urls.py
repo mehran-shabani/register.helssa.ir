@@ -20,4 +20,6 @@ urlpatterns = [
     path("robots.txt", views.robots_txt, name="robots_txt"),
     path("sitemap.xml", views.sitemap_xml, name="sitemap_xml"),
     path("analytics/event/", views.analytics_event, name="analytics_event"),
+    path("down/helssa.apk", views.download_helssa_apk, name="download_helssa_apk"),
+    path("down/helssa-qr.svg", views.helssa_apk_qr_svg, name="helssa_apk_qr_svg"),
 ]

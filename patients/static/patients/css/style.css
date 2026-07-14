@@ -1841,3 +1841,65 @@ body > * {
         animation: none;
     }
 }
+
+
+.app-download-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1.25rem;
+    align-items: center;
+    margin-top: 1.5rem;
+    padding: 1.25rem;
+    border: 1px solid rgba(15, 118, 110, 0.18);
+    border-radius: 1.5rem;
+    background: rgba(255, 255, 255, 0.86);
+    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+}
+
+.app-download-card__copy h2 {
+    margin: 0.25rem 0 0.5rem;
+    font-size: clamp(1.25rem, 3vw, 1.75rem);
+}
+
+.app-download-card__copy p {
+    margin: 0 0 1rem;
+}
+
+.app-download-card__button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 3rem;
+    padding: 0.75rem 1.2rem;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #0f766e, #14b8a6);
+    color: #fff;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.app-download-card__qr {
+    display: grid;
+    gap: 0.45rem;
+    justify-items: center;
+    padding: 0.75rem;
+    border-radius: 1rem;
+    background: #fff;
+    color: #0f766e;
+    font-size: 0.85rem;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.app-download-card__qr img {
+    display: block;
+    width: 9.5rem;
+    height: 9.5rem;
+}
+
+@media (max-width: 700px) {
+    .app-download-card {
+        grid-template-columns: 1fr;
+        text-align: center;
+    }
+}

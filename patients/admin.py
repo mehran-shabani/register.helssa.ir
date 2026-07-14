@@ -191,6 +191,7 @@ def build_visit_events_pdf(events, summary, start_datetime, end_datetime):
             ("تلاش ثبت‌نام", summary["submit_attempts"]),
             ("ثبت‌نام موفق", summary["successful_registrations"]),
             ("ثبت‌نام ناموفق", summary["invalid_submits"] + summary["error_submits"]),
+            ("دانلود اپلیکیشن", summary["apk_downloads"]),
         )
     ]
     story.append(
@@ -849,6 +850,7 @@ class VisitReportAdmin(admin.ModelAdmin):
             ("مشاهده فرم", to_persian_digits(summary["form_views"])),
             ("تلاش ثبت‌نام", to_persian_digits(summary["submit_attempts"])),
             ("ثبت‌نام موفق", to_persian_digits(summary["successful_registrations"])),
+            ("دانلود اپلیکیشن", to_persian_digits(summary["apk_downloads"])),
             (
                 "ثبت‌نام ناموفق",
                 to_persian_digits(

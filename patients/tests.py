@@ -1413,14 +1413,28 @@ class VisitAnalyticsTests(TestCase):
             path="/",
             status_code=200,
         )
-        queryset = VisitEvent.objects.all()
-        pdf = build_visit_events_pdf(
-            queryset,
-            get_visit_report_summary(queryset),
-            event.created_at,
-            timezone.now(),
+        VisitEvent.objects.create(
+            visitor_id="00000000-0000-0000-0000-000000000002",
+            event_type=VisitEvent.EVENT_APK_DOWNLOAD,
+            method="GET",
+            path="/down/helssa.apk",
+            status_code=200,
         )
+        queryset = VisitEvent.objects.all()
+        summary = get_visit_report_summary(queryset)
+        with patch(
+            "patients.admin._rtl_text", side_effect=lambda value: str(value)
+        ) as rtl_text:
+            pdf = build_visit_events_pdf(
+                queryset,
+                summary,
+                event.created_at,
+                timezone.now(),
+            )
 
+        self.assertEqual(summary["apk_downloads"], 1)
+        rtl_text.assert_any_call("دانلود اپلیکیشن")
+        rtl_text.assert_any_call(1)
         self.assertGreater(len(pdf.getvalue()), 100)
         self.assertTrue(pdf.getvalue().startswith(b"%PDF"))
 
@@ -1786,3 +1800,75 @@ class VisitAnalyticsEnhancedTests(TestCase):
             response,
             "export-csv/?range=all&amp;device_type=mobile&amp;utm_source=telegram",
         )
+
+
+class ApkDownloadTests(TestCase):
+    def test_download_endpoint_serves_apk_and_logs_success(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+
+        from .models import VisitEvent
+
+        with TemporaryDirectory() as tmpdir:
+            apk_path = Path(tmpdir) / "helssa.apk"
+            apk_path.write_bytes(b"fake-apk")
+            with patch("patients.views.APK_DOWNLOAD_PATH", apk_path):
+                response = self.client.get("/down/helssa.apk")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response["Content-Type"], "application/vnd.android.package-archive"
+        )
+        self.assertIn("helssa.apk", response["Content-Disposition"])
+        self.assertEqual(b"".join(response.streaming_content), b"fake-apk")
+        event = VisitEvent.objects.get(event_type=VisitEvent.EVENT_APK_DOWNLOAD)
+        self.assertEqual(event.path, "/down/helssa.apk")
+        self.assertEqual(event.status_code, 200)
+        self.assertEqual(event.metadata["result"], "download")
+
+    def test_download_endpoint_logs_missing_file_as_404(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+
+        from .models import VisitEvent
+
+        with TemporaryDirectory() as tmpdir, patch(
+            "patients.views.APK_DOWNLOAD_PATH", Path(tmpdir) / "helssa.apk"
+        ):
+            response = self.client.get("/down/helssa.apk")
+
+        self.assertEqual(response.status_code, 404)
+        event = VisitEvent.objects.get(event_type=VisitEvent.EVENT_APK_DOWNLOAD)
+        self.assertEqual(event.status_code, 404)
+        self.assertEqual(event.metadata["result"], "missing")
+
+    def test_qr_endpoint_returns_svg_for_download_url(self):
+        response = self.client.get("/down/helssa-qr.svg")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "image/svg+xml; charset=utf-8")
+        self.assertIn(b"<svg", response.content)
+
+    def test_register_page_exposes_apk_download_link_and_qr_code(self):
+        response = self.client.get("/")
+
+        self.assertContains(response, 'href="http://testserver/down/helssa.apk"')
+        self.assertContains(response, 'src="http://testserver/down/helssa-qr.svg"')
+
+    def test_summary_counts_apk_download_events(self):
+        from .analytics import get_visit_report_summary
+        from .models import VisitEvent
+
+        VisitEvent.objects.create(
+            visitor_id="00000000-0000-0000-0000-000000000001",
+            event_type=VisitEvent.EVENT_APK_DOWNLOAD,
+            method="GET",
+            path="/down/helssa.apk",
+            status_code=200,
+        )
+
+        summary = get_visit_report_summary(VisitEvent.objects.all())
+
+        self.assertEqual(summary["apk_downloads"], 1)

@@ -61,6 +61,7 @@ class VisitEvent(models.Model):
     EVENT_FORM_SUBMIT_SUCCESS = "form_submit_success"
     EVENT_FORM_SUBMIT_INVALID = "form_submit_invalid"
     EVENT_FORM_SUBMIT_ERROR = "form_submit_error"
+    EVENT_APK_DOWNLOAD = "apk_download"
 
     EVENT_TYPE_CHOICES = (
         (EVENT_PAGE_VIEW, "بازدید صفحه"),
@@ -75,6 +76,7 @@ class VisitEvent(models.Model):
         (EVENT_FORM_SUBMIT_SUCCESS, "ثبت‌نام موفق"),
         (EVENT_FORM_SUBMIT_INVALID, "ثبت‌نام نامعتبر"),
         (EVENT_FORM_SUBMIT_ERROR, "خطای ثبت‌نام"),
+        (EVENT_APK_DOWNLOAD, "دانلود اپلیکیشن"),
     )
 
     visitor_id = models.UUIDField(db_index=True, verbose_name="شناسه بازدیدکننده")
