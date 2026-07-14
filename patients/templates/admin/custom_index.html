@@ -1,0 +1,18 @@
+{% extends "admin/index.html" %}
+{% load i18n %}
+
+{% block content %}
+  <div class="module" style="direction: rtl; text-align: right; margin-bottom: 20px;">
+    <h2>مدیریت اپلیکیشن</h2>
+    <p>از این بخش می‌توانید فایل APK جدید را آپلود کنید. نام فایل دانلودی همان نام فایل آپلودشده خواهد بود.</p>
+    <form method="post" action="{% url 'admin_upload_helssa_apk' %}" enctype="multipart/form-data" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px;">
+      {% csrf_token %}
+      <input type="file" name="apk_file" accept=".apk,application/vnd.android.package-archive" required>
+      <button type="submit" class="button default">آپلود فایل APK</button>
+    </form>
+    <p>
+      <a class="button" href="{% url 'admin_download_helssa_apk' %}">دانلود فایل APK فعلی</a>
+    </p>
+  </div>
+  {{ block.super }}
+{% endblock %}

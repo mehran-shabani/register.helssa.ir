@@ -7,6 +7,7 @@ from unittest.mock import Mock, patch
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.messages import get_messages
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import DatabaseError, IntegrityError
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -1843,6 +1844,142 @@ class ApkDownloadTests(TestCase):
         event = VisitEvent.objects.get(event_type=VisitEvent.EVENT_APK_DOWNLOAD)
         self.assertEqual(event.status_code, 404)
         self.assertEqual(event.metadata["result"], "missing")
+
+    def test_download_endpoint_uses_actual_apk_filename_when_default_missing(self):
+        from tempfile import TemporaryDirectory
+
+        with TemporaryDirectory() as tmpdir:
+            download_dir = Path(tmpdir)
+            apk_path = download_dir / "helssa-release-v2.apk"
+            apk_path.write_bytes(b"versioned-apk")
+            with override_settings(
+                APK_DOWNLOAD_PATH=download_dir / "helssa.apk",
+                APK_DOWNLOAD_DIR=download_dir,
+            ):
+                response = self.client.get("/down/helssa.apk")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("helssa-release-v2.apk", response["Content-Disposition"])
+        self.assertEqual(b"".join(response.streaming_content), b"versioned-apk")
+
+    def test_admin_index_exposes_authenticated_apk_download_link(self):
+        user = get_user_model().objects.create_superuser(
+            username="apk-admin",
+            email="apk-admin@example.com",
+            password="password",
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("admin:index"))
+
+        self.assertContains(response, "آپلود فایل APK")
+        self.assertContains(response, reverse("admin_upload_helssa_apk"))
+        self.assertContains(response, reverse("admin_download_helssa_apk"))
+
+    def test_admin_upload_endpoint_saves_apk_with_uploaded_filename(self):
+        from tempfile import TemporaryDirectory
+
+        user = get_user_model().objects.create_superuser(
+            username="apk-upload-admin",
+            email="apk-upload-admin@example.com",
+            password="password",
+        )
+        self.client.force_login(user)
+
+        with TemporaryDirectory() as tmpdir:
+            download_dir = Path(tmpdir)
+            upload = SimpleUploadedFile(
+                "helssa-uploaded-release.apk",
+                b"uploaded-apk",
+                content_type="application/vnd.android.package-archive",
+            )
+            with override_settings(
+                APK_DOWNLOAD_PATH=download_dir / "helssa.apk",
+                APK_DOWNLOAD_DIR=download_dir,
+            ):
+                response = self.client.post(
+                    reverse("admin_upload_helssa_apk"),
+                    {"apk_file": upload},
+                    follow=True,
+                )
+                downloaded_response = self.client.get(
+                    reverse("admin_download_helssa_apk")
+                )
+
+            uploaded_path = download_dir / "helssa-uploaded-release.apk"
+            self.assertTrue(uploaded_path.exists())
+            self.assertEqual(uploaded_path.read_bytes(), b"uploaded-apk")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "با موفقیت آپلود شد")
+        self.assertIn(
+            "helssa-uploaded-release.apk",
+            downloaded_response["Content-Disposition"],
+        )
+        self.assertEqual(
+            b"".join(downloaded_response.streaming_content), b"uploaded-apk"
+        )
+
+    def test_admin_upload_endpoint_rejects_non_apk_file(self):
+        from tempfile import TemporaryDirectory
+
+        user = get_user_model().objects.create_superuser(
+            username="apk-upload-invalid-admin",
+            email="apk-upload-invalid-admin@example.com",
+            password="password",
+        )
+        self.client.force_login(user)
+
+        with TemporaryDirectory() as tmpdir:
+            download_dir = Path(tmpdir)
+            upload = SimpleUploadedFile(
+                "notes.txt", b"not-apk", content_type="text/plain"
+            )
+            with override_settings(
+                APK_DOWNLOAD_PATH=download_dir / "helssa.apk",
+                APK_DOWNLOAD_DIR=download_dir,
+            ):
+                response = self.client.post(
+                    reverse("admin_upload_helssa_apk"),
+                    {"apk_file": upload},
+                    follow=True,
+                )
+            self.assertFalse((download_dir / "notes.txt").exists())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "فقط فایل با پسوند apk قابل آپلود است.")
+
+    def test_admin_download_endpoint_serves_apk_with_actual_filename(self):
+        from tempfile import TemporaryDirectory
+
+        user = get_user_model().objects.create_superuser(
+            username="apk-download-admin",
+            email="apk-download-admin@example.com",
+            password="password",
+        )
+        self.client.force_login(user)
+
+        with TemporaryDirectory() as tmpdir:
+            download_dir = Path(tmpdir)
+            apk_path = download_dir / "helssa-admin-release.apk"
+            apk_path.write_bytes(b"admin-apk")
+            with override_settings(
+                APK_DOWNLOAD_PATH=download_dir / "helssa.apk",
+                APK_DOWNLOAD_DIR=download_dir,
+            ):
+                response = self.client.get(reverse("admin_download_helssa_apk"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response["Content-Type"], "application/vnd.android.package-archive"
+        )
+        self.assertIn("helssa-admin-release.apk", response["Content-Disposition"])
+        self.assertEqual(b"".join(response.streaming_content), b"admin-apk")
+        self.assertFalse(
+            VisitEvent.objects.filter(
+                event_type=VisitEvent.EVENT_APK_DOWNLOAD
+            ).exists()
+        )
 
     def test_qr_endpoint_returns_svg_for_download_url(self):
         response = self.client.get("/down/helssa-qr.svg")
