@@ -1,10 +1,12 @@
 import json
 from io import BytesIO
+from pathlib import Path
 
 import qrcode
 import qrcode.image.svg
 from django.conf import settings
 from django.contrib import messages
+from django.contrib.admin.views.decorators import staff_member_required
 from django.db import DatabaseError, IntegrityError, transaction
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
@@ -37,7 +39,8 @@ SHARE_IMAGE_PATH = "patients/images/share-logo.png"
 SITE_LOGO_PATH = "patients/images/site-logo.png"
 COMMUNITY_BASE_COUNT = 1008
 APK_DOWNLOAD_FILENAME = "helssa.apk"
-APK_DOWNLOAD_PATH = settings.BASE_DIR / "down" / APK_DOWNLOAD_FILENAME
+APK_DOWNLOAD_DIR = settings.BASE_DIR / "down"
+APK_DOWNLOAD_PATH = APK_DOWNLOAD_DIR / APK_DOWNLOAD_FILENAME
 ENGAGEMENT_EVENT_TYPES = {
     VisitEvent.EVENT_HERO_CTA_CLICK,
     VisitEvent.EVENT_STICKY_CTA_CLICK,
@@ -78,32 +81,67 @@ def get_apk_download_url(request):
     return request.build_absolute_uri(reverse("patients:download_helssa_apk"))
 
 
+def get_apk_download_path():
+    """Return the configured APK path, falling back to the newest APK in /down."""
+
+    configured_path = Path(getattr(settings, "APK_DOWNLOAD_PATH", APK_DOWNLOAD_PATH))
+    if configured_path.exists() and configured_path.is_file():
+        return configured_path
+
+    download_dir = Path(getattr(settings, "APK_DOWNLOAD_DIR", APK_DOWNLOAD_DIR))
+    if not download_dir.exists() or not download_dir.is_dir():
+        return configured_path
+
+    apk_files = [path for path in download_dir.glob("*.apk") if path.is_file()]
+    if not apk_files:
+        return configured_path
+
+    return max(apk_files, key=lambda path: (path.stat().st_mtime, path.name))
+
+
+def _serve_apk_file(request, *, log_download=False):
+    apk_path = get_apk_download_path()
+    download_filename = apk_path.name
+
+    if not apk_path.exists() or not apk_path.is_file():
+        if log_download:
+            _log_analytics(
+                request,
+                VisitEvent.EVENT_APK_DOWNLOAD,
+                metadata={"filename": download_filename, "result": "missing"},
+                status_code=404,
+            )
+        raise Http404("فایل اپلیکیشن هنوز روی سرور قرار نگرفته است.")
+
+    response = FileResponse(
+        apk_path.open("rb"),
+        as_attachment=True,
+        filename=download_filename,
+        content_type="application/vnd.android.package-archive",
+    )
+    if log_download:
+        _log_analytics(
+            request,
+            VisitEvent.EVENT_APK_DOWNLOAD,
+            response=response,
+            metadata={"filename": download_filename, "result": "download"},
+        )
+    return response
+
+
 @require_safe
 def download_helssa_apk(request):
     """Serve the Helssa Android APK and log successful download requests."""
 
-    if not APK_DOWNLOAD_PATH.exists() or not APK_DOWNLOAD_PATH.is_file():
-        _log_analytics(
-            request,
-            VisitEvent.EVENT_APK_DOWNLOAD,
-            metadata={"filename": APK_DOWNLOAD_FILENAME, "result": "missing"},
-            status_code=404,
-        )
-        raise Http404("فایل اپلیکیشن هنوز روی سرور قرار نگرفته است.")
+    return _serve_apk_file(request, log_download=True)
 
-    response = FileResponse(
-        APK_DOWNLOAD_PATH.open("rb"),
-        as_attachment=True,
-        filename=APK_DOWNLOAD_FILENAME,
-        content_type="application/vnd.android.package-archive",
-    )
-    _log_analytics(
-        request,
-        VisitEvent.EVENT_APK_DOWNLOAD,
-        response=response,
-        metadata={"filename": APK_DOWNLOAD_FILENAME, "result": "download"},
-    )
-    return response
+
+@staff_member_required
+@require_safe
+def admin_download_helssa_apk(request):
+    """Serve the APK from an authenticated admin-only URL."""
+
+    return _serve_apk_file(request)
 
 
 @require_safe

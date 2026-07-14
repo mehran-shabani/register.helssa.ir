@@ -1,0 +1,13 @@
+{% extends "admin/index.html" %}
+{% load i18n %}
+
+{% block content %}
+  <div class="module" style="direction: rtl; text-align: right; margin-bottom: 20px;">
+    <h2>دانلود اپلیکیشن</h2>
+    <p>برای دریافت فایل APK فعلی اپلیکیشن، از دکمه زیر استفاده کنید.</p>
+    <p>
+      <a class="button" href="{% url 'admin_download_helssa_apk' %}">دانلود فایل APK</a>
+    </p>
+  </div>
+  {{ block.super }}
+{% endblock %}
