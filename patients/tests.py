@@ -1913,11 +1913,10 @@ class ApkDownloadTests(TestCase):
         self.assertContains(response, 'id="helssa-apk-upload-status"')
         self.assertContains(response, 'role="progressbar"')
         self.assertContains(response, 'aria-valuenow="0"')
-        self.assertContains(response, "در حال آپلود...")
-        self.assertContains(response, "پس از تکمیل آپلود، آماده‌سازی در پس‌زمینه ادامه پیدا می‌کند")
+        self.assertContains(response, "در حال آپلود و آماده‌سازی فایل APK")
         self.assertContains(response, "XMLHttpRequest")
         self.assertContains(response, "xhr.upload.onprogress")
-        self.assertContains(response, "فایل APK دریافت شد. در حال آماده‌سازی")
+        self.assertContains(response, "فایل APK با موفقیت آپلود و جایگزین شد")
         self.assertContains(response, "fetch(statusUrl")
         self.assertContains(response, "آپلود فایل APK ناموفق بود")
 
@@ -2068,7 +2067,10 @@ class ApkDownloadTests(TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(response["Content-Type"], "application/json")
                 self.assertEqual(response.json()["redirect_url"], reverse("admin:index"))
-                self.assertIn("در صف آماده‌سازی", response.json()["message"])
+                self.assertIn("با موفقیت آپلود و جایگزین شد", response.json()["message"])
+                self.assertEqual(
+                    response.json()["job"]["status"], APKUploadJob.STATUS_COMPLETED
+                )
                 self.assertIn("status_url", response.json())
                 self.assertTrue(apk_path.exists())
                 self.assertIn(b"AndroidManifest.xml", apk_path.read_bytes())

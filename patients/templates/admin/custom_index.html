@@ -15,7 +15,7 @@
       <button class="button" type="submit">آپلود و جایگزینی فایل APK</button>
     </form>
     <div id="helssa-apk-upload-status" aria-live="polite" hidden style="direction: rtl; margin-top: 12px; text-align: right;">
-      <p id="helssa-apk-upload-message" style="margin: 0 0 8px;">در حال آپلود... پس از تکمیل آپلود، آماده‌سازی در پس‌زمینه ادامه پیدا می‌کند.</p>
+      <p id="helssa-apk-upload-message" style="margin: 0 0 8px;">در حال آپلود و آماده‌سازی فایل APK...</p>
       <div style="background: #e5e7eb; border-radius: 999px; height: 12px; overflow: hidden; width: min(100%, 420px);">
         <div id="helssa-apk-upload-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" style="background: #10b981; height: 100%; width: 0%;"></div>
       </div>
@@ -89,7 +89,7 @@
         event.preventDefault();
 
         status.hidden = false;
-        message.textContent = "در حال آپلود... پس از تکمیل آپلود، آماده‌سازی در پس‌زمینه ادامه پیدا می‌کند.";
+        message.textContent = "در حال آپلود و آماده‌سازی فایل APK...";
         setProgress(0);
         setControlsDisabled(true);
 
@@ -111,8 +111,12 @@
 
           if (xhr.status >= 200 && xhr.status < 400 && responseData.ok !== false) {
             setProgress(100);
-            message.textContent = responseData.message || "فایل APK دریافت شد. در حال آماده‌سازی...";
-            pollJob(responseData.status_url);
+            message.textContent = responseData.message || "فایل APK با موفقیت آپلود و جایگزین شد.";
+            if (responseData.status_url) {
+              pollJob(responseData.status_url);
+            } else {
+              setControlsDisabled(false);
+            }
             return;
           }
           setControlsDisabled(false);

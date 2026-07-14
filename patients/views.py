@@ -316,10 +316,12 @@ def admin_upload_helssa_apk(request):
     job.status = APKUploadJob.STATUS_QUEUED
     job.stored_path = str(temp_path)
     job.save(update_fields=["status", "stored_path"])
-    finalize_synchronously = getattr(settings, "APK_UPLOAD_FINALIZE_SYNCHRONOUS", False)
+    finalize_synchronously = getattr(settings, "APK_UPLOAD_FINALIZE_SYNCHRONOUS", True)
     if finalize_synchronously:
         _start_apk_upload_finalizer(job.pk)
-        job.refresh_from_db(fields=["status", "error_message", "finished_at"])
+        job.refresh_from_db(
+            fields=["status", "error_message", "stored_path", "finished_at"]
+        )
         if job.status == APKUploadJob.STATUS_FAILED:
             error_message = job.error_message or "فایل انتخاب‌شده APK معتبر نیست."
             if is_ajax_upload:
@@ -329,7 +331,11 @@ def admin_upload_helssa_apk(request):
     else:
         transaction.on_commit(lambda: _start_apk_upload_finalizer(job.pk))
 
-    success_message = "فایل APK دریافت شد و در صف آماده‌سازی قرار گرفت."
+    success_message = (
+        "فایل APK با موفقیت آپلود و جایگزین شد."
+        if finalize_synchronously
+        else "فایل APK دریافت شد و در صف آماده‌سازی قرار گرفت."
+    )
     if is_ajax_upload:
         return JsonResponse(
             {
