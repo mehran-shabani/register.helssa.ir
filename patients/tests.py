@@ -1,4 +1,5 @@
 import json
+import zipfile
 from datetime import datetime, timezone as datetime_timezone
 from io import BytesIO
 from pathlib import Path
@@ -8,6 +9,7 @@ from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.messages import get_messages
 from django.db import DatabaseError, IntegrityError
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from openpyxl import load_workbook
@@ -38,15 +40,18 @@ from .forms import (
 from .views import (
     COMMUNITY_BASE_COUNT,
     CANONICAL_URL,
+    CONTACT_TELEPHONE,
     FORM_ERROR_MESSAGE,
+    ONLINE_VISIT_URL,
     SHARE_DESCRIPTION,
     SHARE_IMAGE_PATH,
     SHARE_TITLE,
     SITE_LOGO_PATH,
     SITE_NAME,
+    SOCIAL_PROFILE_URLS,
     SUCCESS_MESSAGE,
 )
-from .models import SMSMessageLog, Patient, VisitEvent
+from .models import APKUploadJob, SMSMessageLog, Patient, VisitEvent
 from .sms import (
     KavenegarSMSDeliveryError,
     KavenegarSMSConfigurationError,
@@ -54,6 +59,14 @@ from .sms import (
     send_done_sms,
     send_register_sms,
 )
+
+
+def build_minimal_apk_bytes(extra_content=b"classes"):
+    output = BytesIO()
+    with zipfile.ZipFile(output, "w") as apk_zip:
+        apk_zip.writestr("AndroidManifest.xml", b"manifest")
+        apk_zip.writestr("classes.dex", extra_content)
+    return output.getvalue()
 
 
 def register_test_pdf_fonts():
@@ -266,7 +279,9 @@ class KavenegarRegisterSMSTests(TestCase):
             "entries": [{"messageid": 123}],
         }
 
-        with patch("patients.sms.requests.post", return_value=kavenegar_response) as post:
+        with patch(
+            "patients.sms.requests.post", return_value=kavenegar_response
+        ) as post:
             result = send_register_sms("09123456789", "Ali_Ahmadi")
 
         self.assertEqual(result, [{"messageid": 123}])
@@ -277,7 +292,11 @@ class KavenegarRegisterSMSTests(TestCase):
         )
         self.assertEqual(
             post.call_args.kwargs["data"],
-            {"receptor": "09123456789", "template": "register-template", "token": "Ali_Ahmadi"},
+            {
+                "receptor": "09123456789",
+                "template": "register-template",
+                "token": "Ali_Ahmadi",
+            },
         )
         self.assertEqual(post.call_args.kwargs["timeout"], 7)
 
@@ -292,13 +311,19 @@ class KavenegarRegisterSMSTests(TestCase):
             "entries": [{"messageid": 456}],
         }
 
-        with patch("patients.sms.requests.post", return_value=kavenegar_response) as post:
+        with patch(
+            "patients.sms.requests.post", return_value=kavenegar_response
+        ) as post:
             result = send_done_sms("09123456789", "Ali_Ahmadi")
 
         self.assertEqual(result, [{"messageid": 456}])
         self.assertEqual(
             post.call_args.kwargs["data"],
-            {"receptor": "09123456789", "template": "done-template", "token": "Ali_Ahmadi"},
+            {
+                "receptor": "09123456789",
+                "template": "done-template",
+                "token": "Ali_Ahmadi",
+            },
         )
 
     @override_settings(KAVENEGAR_API_KEY="test-api-key", KAVENEGAR_REGISTER_TEMPLATE="")
@@ -537,9 +562,7 @@ class KavenegarRegisterSMSTests(TestCase):
             response["Content-Type"],
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
-        self.assertIn(
-            "selected-patients-report.xlsx", response["Content-Disposition"]
-        )
+        self.assertIn("selected-patients-report.xlsx", response["Content-Disposition"])
         content = b"".join(response.streaming_content)
         workbook = load_workbook(BytesIO(content))
         worksheet = workbook.active
@@ -868,7 +891,22 @@ class RegisterPatientViewTests(TestCase):
         self.assertContains(response, "شماره موبایل")
         self.assertContains(response, "ثبت اطلاعات و دریافت پیگیری درمانگاه")
         self.assertContains(response, "۰ از ۴ بخش تکمیل شده")
-        self.assertContains(response, 'data-sticky-cta')
+        self.assertContains(response, "data-sticky-cta")
+        online_visit_href = reverse("patients:order_redirect")
+        self.assertContains(response, "ویزیت آنلاین")
+        self.assertContains(response, f'href="{online_visit_href}"')
+        self.assertContains(response, 'data-track-click="online_visit_cta_click"')
+        self.assertContains(response, 'data-cta-location="hero_online_visit"')
+
+    def test_register_template_includes_online_visit_card(self):
+        response = self.client.get(reverse("patients:register"))
+
+        self.assertContains(response, 'class="online-visit-card reveal reveal--delay-7"')
+        self.assertContains(response, "ویزیت آنلاین درمانگاه ولیعصر صغاد")
+        self.assertContains(response, "برای دریافت ویزیت آنلاین و پیگیری خدمات درمانی")
+        self.assertContains(response, reverse("patients:order_redirect"))
+        self.assertContains(response, "ورود به ویزیت آنلاین")
+        self.assertContains(response, 'data-track-click="online_visit_card_cta_click"')
 
     def test_register_template_includes_standard_copyright_footer(self):
         response = self.client.get(reverse("patients:register"))
@@ -879,11 +917,19 @@ class RegisterPatientViewTests(TestCase):
     def test_register_template_includes_bottom_social_contact_bar(self):
         response = self.client.get(reverse("patients:register"))
 
-        self.assertContains(response, "سوالی داری؟")
-        self.assertContains(response, 'href="https://ble.ir/helssaaa"')
-        self.assertContains(response, 'href="https://eitaa.ir/helssaaa"')
-        self.assertContains(response, 'aria-label="پرسش از هلسا در پیام‌رسان بله"')
-        self.assertContains(response, 'aria-label="پرسش از هلسا در پیام‌رسان ایتا"')
+        content = response.content.decode()
+        footer_start = content.index('<footer class="site-footer')
+        footer_end = content.index("</footer>", footer_start)
+        footer = content[footer_start:footer_end]
+
+        self.assertIn("تماس با ما", footer)
+        self.assertIn("سوالی داری؟", footer)
+        self.assertIn('href="https://ble.ir/helssaaa"', footer)
+        self.assertIn('href="https://eitaa.ir/helssaaa"', footer)
+        self.assertIn(f'href="tel:{CONTACT_TELEPHONE}"', footer)
+        self.assertIn("تماس و پیگیری ثبت‌نام: +۹۸۹۹۶۱۷۳۳۶۶۸", footer)
+        self.assertIn('aria-label="پرسش از هلسا در پیام‌رسان بله"', footer)
+        self.assertIn('aria-label="پرسش از هلسا در پیام‌رسان ایتا"', footer)
 
     def test_register_template_includes_share_preview_metadata(self):
         response = self.client.get(reverse("patients:register"))
@@ -924,12 +970,25 @@ class RegisterPatientViewTests(TestCase):
         self.assertContains(
             response, "درمانگاه ولیعصر صغاد - پزشک خانواده دکتر حسین شبانی"
         )
+        structured_data = json.loads(response.context["structured_data_json"])
+        self.assertEqual(structured_data["telephone"], CONTACT_TELEPHONE)
+        self.assertEqual(structured_data["contactPoint"]["@type"], "ContactPoint")
+        self.assertEqual(structured_data["contactPoint"]["telephone"], CONTACT_TELEPHONE)
+        self.assertEqual(structured_data["contactPoint"]["contactType"], "customer service")
+        self.assertEqual(structured_data["contactPoint"]["availableLanguage"], "fa-IR")
+        self.assertEqual(structured_data["sameAs"], SOCIAL_PROFILE_URLS)
+        self.assertEqual(structured_data["potentialAction"]["@type"], "ReserveAction")
+        self.assertEqual(structured_data["potentialAction"]["name"], "ویزیت آنلاین")
+        self.assertEqual(
+            structured_data["potentialAction"]["target"]["urlTemplate"],
+            ONLINE_VISIT_URL,
+        )
 
-    def test_order_redirects_temporarily_to_medogram(self):
+    def test_order_redirects_temporarily_to_online_visit_app(self):
         response = self.client.get("/order/")
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response["Location"], "https://medogram.ir")
+        self.assertEqual(response["Location"], "https://order.helssa.ir")
 
     def test_order_without_trailing_slash_uses_append_slash_redirect(self):
         response = self.client.get("/order")
@@ -1109,7 +1168,7 @@ class RegisterPatientViewTests(TestCase):
         self.assertContains(response, 'aria-modal="true"')
         self.assertContains(response, "message-card message-card--success")
         self.assertContains(response, 'class="message-card__icon"')
-        self.assertContains(response, 'data-dismiss-feedback')
+        self.assertContains(response, "data-dismiss-feedback")
         self.assertContains(response, 'class="feedback-dialog__button"')
         self.assertContains(response, "باشه")
         self.assertContains(response, 'class="icon icon--status"')
@@ -1413,14 +1472,28 @@ class VisitAnalyticsTests(TestCase):
             path="/",
             status_code=200,
         )
-        queryset = VisitEvent.objects.all()
-        pdf = build_visit_events_pdf(
-            queryset,
-            get_visit_report_summary(queryset),
-            event.created_at,
-            timezone.now(),
+        VisitEvent.objects.create(
+            visitor_id="00000000-0000-0000-0000-000000000002",
+            event_type=VisitEvent.EVENT_APK_DOWNLOAD,
+            method="GET",
+            path="/down/helssa.apk",
+            status_code=200,
         )
+        queryset = VisitEvent.objects.all()
+        summary = get_visit_report_summary(queryset)
+        with patch(
+            "patients.admin._rtl_text", side_effect=lambda value: str(value)
+        ) as rtl_text:
+            pdf = build_visit_events_pdf(
+                queryset,
+                summary,
+                event.created_at,
+                timezone.now(),
+            )
 
+        self.assertEqual(summary["apk_downloads"], 1)
+        rtl_text.assert_any_call("دانلود اپلیکیشن")
+        rtl_text.assert_any_call(1)
         self.assertGreater(len(pdf.getvalue()), 100)
         self.assertTrue(pdf.getvalue().startswith(b"%PDF"))
 
@@ -1561,7 +1634,9 @@ class VisitAnalyticsEnhancedTests(TestCase):
 
         self.assertEqual(mask_ip("5.122.34.77"), "5.122.34.xxx")
 
-    def test_client_engagement_endpoint_logs_allowed_event_without_sensitive_metadata(self):
+    def test_client_engagement_endpoint_logs_allowed_event_without_sensitive_metadata(
+        self,
+    ):
         response = self.client.post(
             reverse("patients:analytics_event"),
             data=json.dumps(
@@ -1584,6 +1659,22 @@ class VisitAnalyticsEnhancedTests(TestCase):
         self.assertEqual(event.metadata, {"section": "form", "field_name": "mobile"})
         self.assertNotIn("09123456789", str(event.metadata))
         self.assertNotIn("1234567890", str(event.metadata))
+
+    def test_client_engagement_endpoint_logs_online_visit_click_event(self):
+        response = self.client.post(
+            reverse("patients:analytics_event"),
+            data=json.dumps(
+                {
+                    "event_type": VisitEvent.EVENT_ONLINE_VISIT_CTA_CLICK,
+                    "metadata": {"cta_location": "hero_online_visit"},
+                }
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        event = VisitEvent.objects.get(event_type=VisitEvent.EVENT_ONLINE_VISIT_CTA_CLICK)
+        self.assertEqual(event.metadata, {"cta_location": "hero_online_visit"})
 
     def test_client_engagement_endpoint_rejects_unknown_event(self):
         response = self.client.post(
@@ -1786,3 +1877,527 @@ class VisitAnalyticsEnhancedTests(TestCase):
             response,
             "export-csv/?range=all&amp;device_type=mobile&amp;utm_source=telegram",
         )
+
+
+class ApkDownloadTests(TestCase):
+    def test_download_endpoint_serves_apk_and_logs_success(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+
+        from .models import VisitEvent
+
+        with TemporaryDirectory() as tmpdir:
+            apk_path = Path(tmpdir) / "helssa.apk"
+            apk_path.write_bytes(b"fake-apk")
+            with patch("patients.views.APK_DOWNLOAD_PATH", apk_path):
+                response = self.client.get("/down/helssa.apk")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response["Content-Type"], "application/vnd.android.package-archive"
+        )
+        self.assertIn("helssa.apk", response["Content-Disposition"])
+        self.assertEqual(b"".join(response.streaming_content), b"fake-apk")
+        event = VisitEvent.objects.get(event_type=VisitEvent.EVENT_APK_DOWNLOAD)
+        self.assertEqual(event.path, "/down/helssa.apk")
+        self.assertEqual(event.status_code, 200)
+        self.assertEqual(event.metadata["result"], "download")
+
+    def test_download_endpoint_logs_missing_file_as_404(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+
+        from .models import VisitEvent
+
+        with TemporaryDirectory() as tmpdir, patch(
+            "patients.views.APK_DOWNLOAD_PATH", Path(tmpdir) / "helssa.apk"
+        ):
+            response = self.client.get("/down/helssa.apk")
+
+        self.assertEqual(response.status_code, 404)
+        event = VisitEvent.objects.get(event_type=VisitEvent.EVENT_APK_DOWNLOAD)
+        self.assertEqual(event.status_code, 404)
+        self.assertEqual(event.metadata["result"], "missing")
+
+    def test_download_endpoint_uses_actual_apk_filename_when_default_missing(self):
+        from tempfile import TemporaryDirectory
+
+        with TemporaryDirectory() as tmpdir:
+            download_dir = Path(tmpdir)
+            apk_path = download_dir / "helssa-release-v2.apk"
+            apk_path.write_bytes(b"versioned-apk")
+            with override_settings(
+                APK_DOWNLOAD_PATH=download_dir / "helssa.apk",
+                APK_DOWNLOAD_DIR=download_dir,
+            ):
+                response = self.client.get("/down/helssa.apk")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("helssa-release-v2.apk", response["Content-Disposition"])
+        self.assertEqual(b"".join(response.streaming_content), b"versioned-apk")
+
+    def test_admin_index_exposes_authenticated_apk_download_link(self):
+        user = get_user_model().objects.create_superuser(
+            username="apk-admin",
+            email="apk-admin@example.com",
+            password="password",
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("admin:index"))
+
+        self.assertContains(response, "دانلود فایل APK")
+        self.assertContains(response, reverse("admin_download_helssa_apk"))
+
+    def test_admin_index_exposes_apk_upload_form(self):
+        user = get_user_model().objects.create_superuser(
+            username="apk-upload-admin",
+            email="apk-upload-admin@example.com",
+            password="password",
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("admin:index"))
+
+        self.assertContains(response, "آپلود فایل APK جدید")
+        self.assertContains(response, reverse("admin_upload_helssa_apk"))
+        self.assertContains(response, 'id="helssa-apk-upload-form"')
+        self.assertContains(response, 'name="apk_file"')
+        self.assertContains(response, 'id="helssa-apk-upload-status"')
+        self.assertContains(response, 'role="progressbar"')
+        self.assertContains(response, 'aria-valuenow="0"')
+        self.assertContains(response, "در حال آپلود و آماده‌سازی فایل APK")
+        self.assertContains(response, "XMLHttpRequest")
+        self.assertContains(response, "xhr.upload.onprogress")
+        self.assertContains(response, "فایل APK با موفقیت آپلود و جایگزین شد")
+        self.assertContains(response, "fetch(statusUrl")
+        self.assertContains(response, "آپلود فایل APK ناموفق بود")
+
+    def test_admin_index_builds_ajax_form_data_before_disabling_file_input(self):
+        user = get_user_model().objects.create_superuser(
+            username="apk-formdata-admin",
+            email="apk-formdata-admin@example.com",
+            password="password",
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("admin:index"))
+        content = response.content.decode()
+
+        self.assertIn('name="apk_file"', content)
+        set_progress_index = content.index("setProgress(0);")
+        form_data_index = content.index("const formData = new FormData(form);")
+        disable_index = content.index("setControlsDisabled(true);")
+        send_index = content.index("xhr.send(formData);")
+        self.assertLess(set_progress_index, form_data_index)
+        self.assertLess(form_data_index, disable_index)
+        self.assertLess(disable_index, send_index)
+        self.assertNotIn("xhr.send(new FormData(form));", content)
+
+    def test_admin_upload_endpoint_saves_file_with_configured_download_name(self):
+        from tempfile import TemporaryDirectory
+
+        user = get_user_model().objects.create_superuser(
+            username="apk-uploader",
+            email="apk-uploader@example.com",
+            password="password",
+        )
+        self.client.force_login(user)
+
+        with TemporaryDirectory() as tmpdir:
+            download_dir = Path(tmpdir) / "down"
+            apk_path = download_dir / "helssa.apk"
+            uploaded_file = SimpleUploadedFile(
+                "release-v9.apk",
+                build_minimal_apk_bytes(b"uploaded-apk"),
+                content_type="application/vnd.android.package-archive",
+            )
+            with override_settings(
+                APK_DOWNLOAD_PATH=apk_path,
+                APK_DOWNLOAD_DIR=download_dir,
+                APK_UPLOAD_FINALIZE_SYNCHRONOUS=True,
+            ):
+                response = self.client.post(
+                    reverse("admin_upload_helssa_apk"),
+                    {"apk_file": uploaded_file},
+                    follow=True,
+                )
+
+                self.assertRedirects(response, reverse("admin:index"))
+                self.assertTrue(apk_path.exists())
+                self.assertIn(b"AndroidManifest.xml", apk_path.read_bytes())
+                self.assertFalse((download_dir / "release-v9.apk").exists())
+                download_response = self.client.get(
+                    reverse("admin_download_helssa_apk")
+                )
+
+        self.assertEqual(download_response.status_code, 200)
+        self.assertIn("helssa.apk", download_response["Content-Disposition"])
+        self.assertIn(
+            b"AndroidManifest.xml", b"".join(download_response.streaming_content)
+        )
+
+    def test_admin_upload_endpoint_rejects_non_apk_file(self):
+        from tempfile import TemporaryDirectory
+
+        user = get_user_model().objects.create_superuser(
+            username="apk-upload-validator",
+            email="apk-upload-validator@example.com",
+            password="password",
+        )
+        self.client.force_login(user)
+
+        with TemporaryDirectory() as tmpdir:
+            download_dir = Path(tmpdir)
+            apk_path = download_dir / "helssa.apk"
+            uploaded_file = SimpleUploadedFile("notes.txt", b"not-apk")
+            with override_settings(
+                APK_DOWNLOAD_PATH=apk_path,
+                APK_DOWNLOAD_DIR=download_dir,
+                APK_UPLOAD_FINALIZE_SYNCHRONOUS=True,
+            ):
+                response = self.client.post(
+                    reverse("admin_upload_helssa_apk"),
+                    {"apk_file": uploaded_file},
+                    follow=True,
+                )
+
+        self.assertRedirects(response, reverse("admin:index"))
+        self.assertFalse(apk_path.exists())
+        messages = [message.message for message in get_messages(response.wsgi_request)]
+        self.assertIn("فقط فایل با پسوند APK قابل آپلود است.", messages)
+
+    def test_admin_upload_endpoint_rejects_non_zip_apk_without_overwriting_existing_file(self):
+        from tempfile import TemporaryDirectory
+
+        user = get_user_model().objects.create_superuser(
+            username="apk-upload-structure-validator",
+            email="apk-upload-structure-validator@example.com",
+            password="password",
+        )
+        self.client.force_login(user)
+
+        with TemporaryDirectory() as tmpdir:
+            download_dir = Path(tmpdir)
+            apk_path = download_dir / "helssa.apk"
+            apk_path.write_bytes(b"previous-apk")
+            uploaded_file = SimpleUploadedFile(
+                "invalid-release.apk",
+                b"not-a-zip-file",
+                content_type="application/vnd.android.package-archive",
+            )
+            with override_settings(
+                APK_DOWNLOAD_PATH=apk_path,
+                APK_DOWNLOAD_DIR=download_dir,
+                APK_UPLOAD_FINALIZE_SYNCHRONOUS=True,
+            ):
+                response = self.client.post(
+                    reverse("admin_upload_helssa_apk"),
+                    {"apk_file": uploaded_file},
+                    follow=True,
+                )
+
+                self.assertEqual(apk_path.read_bytes(), b"previous-apk")
+                self.assertEqual(
+                    list((download_dir / "tmp").glob("apk-upload-*.apk")), []
+                )
+
+        self.assertRedirects(response, reverse("admin:index"))
+        messages = [message.message for message in get_messages(response.wsgi_request)]
+        self.assertIn("فایل انتخاب‌شده APK معتبر نیست.", messages)
+        job = APKUploadJob.objects.get()
+        self.assertEqual(job.status, APKUploadJob.STATUS_FAILED)
+        self.assertEqual(job.error_message, "فایل انتخاب‌شده APK معتبر نیست.")
+
+    def test_admin_ajax_upload_endpoint_returns_json_success(self):
+        from tempfile import TemporaryDirectory
+
+        user = get_user_model().objects.create_superuser(
+            username="apk-ajax-uploader",
+            email="apk-ajax-uploader@example.com",
+            password="password",
+        )
+        self.client.force_login(user)
+
+        with TemporaryDirectory() as tmpdir:
+            download_dir = Path(tmpdir)
+            apk_path = download_dir / "helssa.apk"
+            uploaded_file = SimpleUploadedFile(
+                "release-v10.apk",
+                build_minimal_apk_bytes(b"ajax-uploaded-apk"),
+                content_type="application/vnd.android.package-archive",
+            )
+            with override_settings(
+                APK_DOWNLOAD_PATH=apk_path,
+                APK_DOWNLOAD_DIR=download_dir,
+                APK_UPLOAD_FINALIZE_SYNCHRONOUS=True,
+            ):
+                response = self.client.post(
+                    reverse("admin_upload_helssa_apk"),
+                    {"apk_file": uploaded_file},
+                    HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+                )
+
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response["Content-Type"], "application/json")
+                self.assertEqual(response.json()["redirect_url"], reverse("admin:index"))
+                self.assertIn("با موفقیت آپلود و جایگزین شد", response.json()["message"])
+                self.assertEqual(
+                    response.json()["job"]["status"], APKUploadJob.STATUS_COMPLETED
+                )
+                self.assertIn("status_url", response.json())
+                self.assertTrue(apk_path.exists())
+                self.assertIn(b"AndroidManifest.xml", apk_path.read_bytes())
+
+    def test_admin_ajax_upload_endpoint_returns_json_error_for_invalid_file(self):
+        from tempfile import TemporaryDirectory
+
+        user = get_user_model().objects.create_superuser(
+            username="apk-ajax-validator",
+            email="apk-ajax-validator@example.com",
+            password="password",
+        )
+        self.client.force_login(user)
+
+        with TemporaryDirectory() as tmpdir:
+            download_dir = Path(tmpdir)
+            apk_path = download_dir / "helssa.apk"
+            uploaded_file = SimpleUploadedFile("notes.txt", b"not-apk")
+            with override_settings(
+                APK_DOWNLOAD_PATH=apk_path,
+                APK_DOWNLOAD_DIR=download_dir,
+            ):
+                response = self.client.post(
+                    reverse("admin_upload_helssa_apk"),
+                    {"apk_file": uploaded_file},
+                    HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+                )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response["Content-Type"], "application/json")
+        self.assertFalse(response.json()["ok"])
+        self.assertEqual(response.json()["message"], "فقط فایل با پسوند APK قابل آپلود است.")
+        self.assertFalse(apk_path.exists())
+
+    def test_admin_upload_endpoint_creates_job_and_temp_file_before_finalizing(self):
+        from tempfile import TemporaryDirectory
+
+        user = get_user_model().objects.create_superuser(
+            username="apk-job-uploader",
+            email="apk-job-uploader@example.com",
+            password="password",
+        )
+        self.client.force_login(user)
+
+        with TemporaryDirectory() as tmpdir:
+            download_dir = Path(tmpdir)
+            apk_path = download_dir / "helssa.apk"
+            uploaded_file = SimpleUploadedFile(
+                "release-job.apk",
+                build_minimal_apk_bytes(b"queued-apk"),
+                content_type="application/vnd.android.package-archive",
+            )
+            with override_settings(
+                APK_DOWNLOAD_PATH=apk_path,
+                APK_DOWNLOAD_DIR=download_dir,
+                APK_UPLOAD_FINALIZE_SYNCHRONOUS=False,
+            ), patch("patients.views._start_apk_upload_finalizer") as finalizer:
+                response = self.client.post(
+                    reverse("admin_upload_helssa_apk"),
+                    {"apk_file": uploaded_file},
+                    HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+                )
+
+                self.assertEqual(response.status_code, 200)
+                job = APKUploadJob.objects.get()
+                self.assertEqual(job.status, APKUploadJob.STATUS_QUEUED)
+                self.assertEqual(job.original_filename, "release-job.apk")
+                self.assertIn(
+                    b"AndroidManifest.xml", Path(job.stored_path).read_bytes()
+                )
+                self.assertEqual(Path(job.stored_path).parent.name, "tmp")
+                self.assertFalse(apk_path.exists())
+                finalizer.assert_not_called()
+
+    def test_admin_upload_status_endpoint_returns_job_json(self):
+        user = get_user_model().objects.create_superuser(
+            username="apk-status-admin",
+            email="apk-status-admin@example.com",
+            password="password",
+        )
+        self.client.force_login(user)
+        job = APKUploadJob.objects.create(
+            status=APKUploadJob.STATUS_PREPARING,
+            original_filename="release.apk",
+            created_by=user,
+        )
+
+        response = self.client.get(reverse("admin_apk_upload_status", args=[job.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["job"]["status"], APKUploadJob.STATUS_PREPARING)
+        self.assertEqual(payload["job"]["status_label"], "در حال آماده‌سازی")
+
+    def test_finalize_apk_upload_job_marks_missing_temp_file_failed(self):
+        from tempfile import TemporaryDirectory
+        from patients.views import _finalize_apk_upload_job
+
+        with TemporaryDirectory() as tmpdir:
+            job = APKUploadJob.objects.create(
+                status=APKUploadJob.STATUS_QUEUED,
+                original_filename="missing.apk",
+                stored_path=str(Path(tmpdir) / "missing.apk"),
+            )
+            with override_settings(
+                APK_DOWNLOAD_PATH=Path(tmpdir) / "helssa.apk",
+                APK_DOWNLOAD_DIR=Path(tmpdir),
+            ):
+                _finalize_apk_upload_job(job.pk)
+
+        job.refresh_from_db()
+        self.assertEqual(job.status, APKUploadJob.STATUS_FAILED)
+        self.assertIn("ناقص", job.error_message)
+
+    def test_finalize_apk_upload_job_removes_temp_file_on_failure(self):
+        from tempfile import TemporaryDirectory
+        from patients.views import _finalize_apk_upload_job
+
+        with TemporaryDirectory() as tmpdir:
+            temp_path = Path(tmpdir) / "bad.apk"
+            temp_path.write_bytes(b"")
+            job = APKUploadJob.objects.create(
+                status=APKUploadJob.STATUS_QUEUED,
+                original_filename="bad.apk",
+                stored_path=str(temp_path),
+            )
+            with override_settings(
+                APK_DOWNLOAD_PATH=Path(tmpdir) / "helssa.apk",
+                APK_DOWNLOAD_DIR=Path(tmpdir),
+            ):
+                _finalize_apk_upload_job(job.pk)
+
+            self.assertFalse(temp_path.exists())
+
+        job.refresh_from_db()
+        self.assertEqual(job.status, APKUploadJob.STATUS_FAILED)
+
+    def test_admin_upload_marks_job_failed_when_temp_save_fails(self):
+        from tempfile import TemporaryDirectory
+
+        user = get_user_model().objects.create_superuser(
+            username="apk-save-fail-admin",
+            email="apk-save-fail-admin@example.com",
+            password="password",
+        )
+        self.client.force_login(user)
+
+        with TemporaryDirectory() as tmpdir:
+            download_dir = Path(tmpdir)
+            uploaded_file = SimpleUploadedFile(
+                "release.apk",
+                build_minimal_apk_bytes(b"apk-content"),
+                content_type="application/vnd.android.package-archive",
+            )
+            with override_settings(
+                APK_DOWNLOAD_PATH=download_dir / "helssa.apk",
+                APK_DOWNLOAD_DIR=download_dir,
+            ), patch(
+                "patients.views._save_uploaded_apk_to_temp",
+                side_effect=OSError("disk full"),
+            ):
+                response = self.client.post(
+                    reverse("admin_upload_helssa_apk"),
+                    {"apk_file": uploaded_file},
+                    HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+                )
+
+        self.assertEqual(response.status_code, 500)
+        self.assertFalse(response.json()["ok"])
+        job = APKUploadJob.objects.get()
+        self.assertEqual(job.status, APKUploadJob.STATUS_FAILED)
+        self.assertIn("disk full", job.error_message)
+
+    def test_save_uploaded_apk_to_temp_deletes_partial_file_on_write_error(self):
+        from tempfile import TemporaryDirectory
+        from patients.views import _save_uploaded_apk_to_temp
+
+        class FailingUpload:
+            name = "release.apk"
+
+            def chunks(self):
+                yield b"partial"
+                raise OSError("write interrupted")
+
+        with TemporaryDirectory() as tmpdir:
+            download_dir = Path(tmpdir)
+            with override_settings(APK_DOWNLOAD_DIR=download_dir):
+                with self.assertRaises(OSError):
+                    _save_uploaded_apk_to_temp(FailingUpload())
+
+                temp_files = list((download_dir / "tmp").glob("apk-upload-*.apk"))
+
+        self.assertEqual(temp_files, [])
+
+    def test_admin_download_endpoint_serves_apk_with_actual_filename(self):
+        from tempfile import TemporaryDirectory
+
+        user = get_user_model().objects.create_superuser(
+            username="apk-download-admin",
+            email="apk-download-admin@example.com",
+            password="password",
+        )
+        self.client.force_login(user)
+
+        with TemporaryDirectory() as tmpdir:
+            download_dir = Path(tmpdir)
+            apk_path = download_dir / "helssa-admin-release.apk"
+            apk_path.write_bytes(b"admin-apk")
+            with override_settings(
+                APK_DOWNLOAD_PATH=download_dir / "helssa.apk",
+                APK_DOWNLOAD_DIR=download_dir,
+            ):
+                response = self.client.get(reverse("admin_download_helssa_apk"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response["Content-Type"], "application/vnd.android.package-archive"
+        )
+        self.assertIn("helssa-admin-release.apk", response["Content-Disposition"])
+        self.assertEqual(b"".join(response.streaming_content), b"admin-apk")
+        self.assertFalse(
+            VisitEvent.objects.filter(event_type=VisitEvent.EVENT_APK_DOWNLOAD).exists()
+        )
+
+    def test_qr_endpoint_returns_svg_for_download_url(self):
+        response = self.client.get("/down/helssa-qr.svg")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "image/svg+xml; charset=utf-8")
+        self.assertIn(b"<svg", response.content)
+
+    def test_register_page_exposes_apk_download_link_and_qr_code(self):
+        response = self.client.get("/")
+
+        self.assertContains(response, 'href="/down/helssa.apk"')
+        self.assertContains(response, ">دانلود هلسا</a>")
+        self.assertContains(response, 'src="http://testserver/down/helssa-qr.svg"')
+
+    def test_summary_counts_apk_download_events(self):
+        from .analytics import get_visit_report_summary
+        from .models import VisitEvent
+
+        VisitEvent.objects.create(
+            visitor_id="00000000-0000-0000-0000-000000000001",
+            event_type=VisitEvent.EVENT_APK_DOWNLOAD,
+            method="GET",
+            path="/down/helssa.apk",
+            status_code=200,
+        )
+
+        summary = get_visit_report_summary(VisitEvent.objects.all())
+
+        self.assertEqual(summary["apk_downloads"], 1)

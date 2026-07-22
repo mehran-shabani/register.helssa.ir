@@ -210,6 +210,7 @@ def get_visit_report_summary(queryset):
         successful_registrations=Count("id", filter=Q(event_type=VisitEvent.EVENT_FORM_SUBMIT_SUCCESS)),
         invalid_submits=Count("id", filter=Q(event_type=VisitEvent.EVENT_FORM_SUBMIT_INVALID)),
         error_submits=Count("id", filter=Q(event_type=VisitEvent.EVENT_FORM_SUBMIT_ERROR)),
+        apk_downloads=Count("id", filter=Q(event_type=VisitEvent.EVENT_APK_DOWNLOAD)),
         bot_count=Count("id", filter=Q(is_bot=True)),
         mobile_count=Count("visitor_id", filter=Q(device_type="mobile"), distinct=True),
         desktop_count=Count("visitor_id", filter=Q(device_type="desktop"), distinct=True),

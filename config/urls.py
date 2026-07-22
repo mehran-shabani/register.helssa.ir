@@ -12,13 +12,37 @@ Class-based views
     2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
 Including another URLconf
     1. Import the include() function: from django.urls import include, path
+
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
 from django.contrib import admin
 from django.urls import include, path
 
+from patients.views import (
+    admin_apk_upload_status,
+    admin_download_helssa_apk,
+    admin_upload_helssa_apk,
+)
+
+admin.site.index_template = "admin/custom_index.html"
+
 urlpatterns = [
+    path(
+        "admin/download-helssa-apk/",
+        admin_download_helssa_apk,
+        name="admin_download_helssa_apk",
+    ),
+    path(
+        "admin/upload-helssa-apk/",
+        admin_upload_helssa_apk,
+        name="admin_upload_helssa_apk",
+    ),
+    path(
+        "admin/upload-helssa-apk/<int:job_id>/status/",
+        admin_apk_upload_status,
+        name="admin_apk_upload_status",
+    ),
     path("admin/", admin.site.urls),
     path("", include("patients.urls")),
 ]

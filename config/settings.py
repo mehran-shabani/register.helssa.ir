@@ -209,6 +209,7 @@ try:
 except (TypeError, ValueError):
     KAVENEGAR_REQUEST_TIMEOUT_SECONDS = 10.0
 SMS_SEND_ASYNC = _env_bool("SMS_SEND_ASYNC", True)
+APK_UPLOAD_FINALIZE_SYNCHRONOUS = _env_bool("APK_UPLOAD_FINALIZE_SYNCHRONOUS", True)
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

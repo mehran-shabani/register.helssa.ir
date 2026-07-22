@@ -59,7 +59,10 @@
                 <img class="hero__logo reveal" src="{{ site_logo.url }}" alt="{{ site_logo.alt }}" width="96" height="96">
             {% endif %}
 
-            <div class="hero__badge reveal reveal--delay-1">ثبت‌نام فعال پزشک خانواده صغاد</div>
+            <div class="hero__kicker reveal reveal--delay-1">
+                <span class="hero__badge">ثبت‌نام فعال پزشک خانواده صغاد</span>
+                <span class="hero__status-dot">پاسخگویی درمانگاه</span>
+            </div>
 
             <h1 id="page-title" class="reveal reveal--delay-2">{{ share_meta.site_name }}</h1>
 
@@ -70,8 +73,15 @@
 
             <div class="hero__actions reveal reveal--delay-4" aria-label="اقدام سریع">
                 <a class="hero__button" href="#registration-form" data-track-click="hero_cta_click" data-cta-location="hero_primary">شروع ثبت‌نام سریع</a>
+                <a class="hero__button hero__button--online-visit" href="{% url 'patients:order_redirect' %}" data-track-click="online_visit_cta_click" data-cta-location="hero_online_visit">ویزیت آنلاین</a>
                 <span class="hero__note">کمتر از یک دقیقه زمان می‌برد.</span>
             </div>
+
+            <ul class="hero__quick-points reveal reveal--delay-4" aria-label="نکات مهم ثبت‌نام">
+                <li>بدون مراجعه حضوری برای شروع</li>
+                <li>نمایش نتیجه ثبت در لحظه</li>
+                <li>تماس درمانگاه برای تکمیل پرونده</li>
+            </ul>
 
             <div class="hero__visual hero__visual--brand reveal reveal--delay-5" data-parallax="0.12" aria-hidden="true">
                 <div class="brand-orbit">
@@ -144,6 +154,26 @@
             </div>
         </section>
 
+        <section
+            class="online-visit-card reveal reveal--delay-7"
+            aria-labelledby="online-visit-title"
+            data-track-section="online-visit"
+        >
+            <div class="online-visit-card__copy">
+                <p class="eyebrow">ویزیت آنلاین</p>
+                <h2 id="online-visit-title">ویزیت آنلاین درمانگاه ولیعصر صغاد</h2>
+                <p>برای دریافت ویزیت آنلاین و پیگیری خدمات درمانی، وارد وب‌اپ هلسا شوید.</p>
+            </div>
+            <a
+                class="online-visit-card__button"
+                href="{% url 'patients:order_redirect' %}"
+                data-track-click="online_visit_card_cta_click"
+                data-cta-location="online_visit_card"
+            >
+                ورود به ویزیت آنلاین
+            </a>
+        </section>
+
         <section class="flow-section" aria-labelledby="flow-title" data-track-section="flow">
             <div class="flow-section__copy reveal">
                 <p class="eyebrow">مسیر ثبت‌نام</p>
@@ -204,6 +234,11 @@
                 <p class="eyebrow">فرم ثبت اطلاعات</p>
                 <h2 id="form-title">ثبت‌نام اولیه بیمار</h2>
                 <p>فقط چند مشخصه لازم است؛ پس از ثبت، جهت تکمیل فرآیند با شما تماس گرفته می‌شود.</p>
+            </div>
+
+            <div class="form-assurance" aria-label="اطمینان ثبت‌نام">
+                <span>اطلاعات فقط برای تماس درمانگاه استفاده می‌شود.</span>
+                <strong>شروع پیگیری پس از ثبت موفق</strong>
             </div>
 
             <div class="form-progress" aria-label="پیشرفت تکمیل فرم">
@@ -332,6 +367,28 @@
             </form>
         </section>
 
+        <section
+            class="app-download-card reveal reveal--delay-8"
+            aria-label="دانلود اپلیکیشن هلسا"
+            data-track-section="apk-download"
+        >
+            <div class="app-download-card__copy">
+                <p class="eyebrow">اپلیکیشن هلسا</p>
+                <h2>دانلود مستقیم فایل اندروید</h2>
+                <p>برای نصب اپلیکیشن، لینک دانلود را باز کنید یا QR code را با دوربین گوشی اسکن کنید.</p>
+                <a class="app-download-card__button" href="{{ apk_download.url }}" download>دانلود هلسا</a>
+            </div>
+            <a class="app-download-card__qr" href="{{ apk_download.url }}" aria-label="اسکن QR code دانلود اپلیکیشن">
+                <img
+                    src="{{ apk_download.qr_url }}"
+                    alt="QR code دانلود اپلیکیشن هلسا"
+                    width="152"
+                    height="152"
+                >
+                <span>اسکن برای دانلود</span>
+            </a>
+        </section>
+
         <section class="faq-panel reveal reveal--delay-9" aria-labelledby="faq-title" data-track-section="faq">
             <p class="eyebrow">سؤال‌های پرتکرار</p>
             <h2 id="faq-title">قبل از ثبت‌نام چه چیزهایی را بدانم؟</h2>
@@ -349,27 +406,32 @@
             </details>
         </section>
 
-        <aside class="bottom-social-cta reveal reveal--delay-4" aria-label="راه‌های ارتباط با هلسا">
-            <span class="bottom-social-cta__text">سوالی داری؟</span>
-            <nav class="bottom-social-cta__links" aria-label="لینک‌های پیام‌رسان هلسا">
-                <a class="bottom-social-cta__link" href="https://ble.ir/helssaaa" target="_blank" rel="noopener noreferrer" aria-label="پرسش از هلسا در پیام‌رسان بله">
-                    <svg class="bottom-social-cta__svg" width="18" height="18" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-                        <path d="M12 3.1c-4.5 0-8.1 3.2-8.1 7.2 0 2.1 1 4 2.6 5.3l-.8 3.7 3.8-2.1c.8.2 1.6.3 2.5.3 4.5 0 8.1-3.2 8.1-7.2S16.5 3.1 12 3.1Z" fill="currentColor"/>
-                        <path d="M8.6 10.5h6.8M8.6 13.2h4.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.7"/>
-                    </svg>
-                    <span>بله</span>
-                </a>
-                <a class="bottom-social-cta__link" href="https://eitaa.ir/helssaaa" target="_blank" rel="noopener noreferrer" aria-label="پرسش از هلسا در پیام‌رسان ایتا">
-                    <svg class="bottom-social-cta__svg" width="18" height="18" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-                        <path d="M20.7 4.1 3.9 10.6c-1.1.4-1.1 1.9.1 2.3l4.1 1.3 1.6 5c.3 1 1.6 1.3 2.3.5l2.4-2.8 4.2 3.1c.9.7 2.2.2 2.4-1l2.6-15.3c.2-1.1-.8-1.9-1.8-1.5Z" fill="currentColor"/>
-                        <path d="m8.2 14.1 9.6-7.2-7.2 8.8-.3 3.4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.35"/>
-                    </svg>
-                    <span>ایتا</span>
-                </a>
-            </nav>
-        </aside>
-
         <footer class="site-footer reveal reveal--delay-5">
+            <section class="bottom-social-cta" aria-labelledby="footer-contact-title">
+                <div class="bottom-social-cta__copy">
+                    <h2 id="footer-contact-title" class="bottom-social-cta__title">تماس با ما</h2>
+                    <span class="bottom-social-cta__text">سوالی داری؟</span>
+                </div>
+                <a class="bottom-social-cta__link bottom-social-cta__link--phone" href="tel:{{ contact_telephone }}" aria-label="تماس و پیگیری ثبت‌نام با درمانگاه">
+                    <span>تماس و پیگیری ثبت‌نام: {{ contact_telephone_display }}</span>
+                </a>
+                <nav class="bottom-social-cta__links" aria-label="لینک‌های پیام‌رسان هلسا">
+                    <a class="bottom-social-cta__link" href="https://ble.ir/helssaaa" target="_blank" rel="noopener noreferrer" aria-label="پرسش از هلسا در پیام‌رسان بله">
+                        <svg class="bottom-social-cta__svg" width="18" height="18" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                            <path d="M12 3.1c-4.5 0-8.1 3.2-8.1 7.2 0 2.1 1 4 2.6 5.3l-.8 3.7 3.8-2.1c.8.2 1.6.3 2.5.3 4.5 0 8.1-3.2 8.1-7.2S16.5 3.1 12 3.1Z" fill="currentColor"/>
+                            <path d="M8.6 10.5h6.8M8.6 13.2h4.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.7"/>
+                        </svg>
+                        <span>بله</span>
+                    </a>
+                    <a class="bottom-social-cta__link" href="https://eitaa.ir/helssaaa" target="_blank" rel="noopener noreferrer" aria-label="پرسش از هلسا در پیام‌رسان ایتا">
+                        <svg class="bottom-social-cta__svg" width="18" height="18" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                            <path d="M20.7 4.1 3.9 10.6c-1.1.4-1.1 1.9.1 2.3l4.1 1.3 1.6 5c.3 1 1.6 1.3 2.3.5l2.4-2.8 4.2 3.1c.9.7 2.2.2 2.4-1l2.6-15.3c.2-1.1-.8-1.9-1.8-1.5Z" fill="currentColor"/>
+                            <path d="m8.2 14.1 9.6-7.2-7.2 8.8-.3 3.4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.35"/>
+                        </svg>
+                        <span>ایتا</span>
+                    </a>
+                </nav>
+            </section>
             <p dir="ltr">&copy; 2026 Helssa. All rights reserved.</p>
         </footer>
 

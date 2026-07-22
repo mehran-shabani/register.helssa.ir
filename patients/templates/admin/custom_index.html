@@ -1,0 +1,137 @@
+{% extends "admin/index.html" %}
+{% load i18n %}
+
+{% block content %}
+  <div class="module" style="direction: rtl; text-align: right; margin-bottom: 20px;">
+    <h2>دانلود اپلیکیشن</h2>
+    <p>برای دریافت فایل APK فعلی اپلیکیشن، از دکمه زیر استفاده کنید.</p>
+    <p>
+      <a class="button" href="{% url 'admin_download_helssa_apk' %}">دانلود فایل APK</a>
+    </p>
+    <form id="helssa-apk-upload-form" action="{% url 'admin_upload_helssa_apk' %}" method="post" enctype="multipart/form-data" style="margin-top: 12px;">
+      {% csrf_token %}
+      <label for="helssa-apk-upload">آپلود فایل APK جدید</label>
+      <input id="helssa-apk-upload" type="file" name="apk_file" accept=".apk,application/vnd.android.package-archive" required>
+      <button class="button" type="submit">آپلود و جایگزینی فایل APK</button>
+    </form>
+    <div id="helssa-apk-upload-status" aria-live="polite" hidden style="direction: rtl; margin-top: 12px; text-align: right;">
+      <p id="helssa-apk-upload-message" style="margin: 0 0 8px;">در حال آپلود و آماده‌سازی فایل APK...</p>
+      <div style="background: #e5e7eb; border-radius: 999px; height: 12px; overflow: hidden; width: min(100%, 420px);">
+        <div id="helssa-apk-upload-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" style="background: #10b981; height: 100%; width: 0%;"></div>
+      </div>
+      <p id="helssa-apk-upload-percent" style="margin: 6px 0 0;">۰٪</p>
+    </div>
+    <p class="help">فایل آپلودی همیشه با نام ثابت مورد نیاز لینک دانلود ذخیره می‌شود.</p>
+  </div>
+  <script>
+    (function () {
+      const form = document.getElementById("helssa-apk-upload-form");
+      if (!form || !window.XMLHttpRequest || !window.FormData) {
+        return;
+      }
+
+      const fileInput = form.querySelector('input[type="file"]');
+      const submitButton = form.querySelector('button[type="submit"]');
+      const status = document.getElementById("helssa-apk-upload-status");
+      const message = document.getElementById("helssa-apk-upload-message");
+      const progress = document.getElementById("helssa-apk-upload-progress");
+      const percentText = document.getElementById("helssa-apk-upload-percent");
+
+      const setProgress = function (value) {
+        const safeValue = Math.max(0, Math.min(100, Math.round(value)));
+        progress.style.width = safeValue + "%";
+        progress.setAttribute("aria-valuenow", String(safeValue));
+        percentText.textContent = safeValue.toLocaleString("fa-IR") + "٪";
+      };
+
+      const pollJob = function (statusUrl) {
+        if (!statusUrl) {
+          return;
+        }
+        window.setTimeout(function () {
+          fetch(statusUrl, {headers: {"X-Requested-With": "XMLHttpRequest"}})
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+              if (!data.ok || !data.job) {
+                throw new Error(data.message || "خطا در دریافت وضعیت آپلود");
+              }
+              message.textContent = "وضعیت: " + data.job.status_label;
+              if (data.job.status === "completed") {
+                setProgress(100);
+                setControlsDisabled(false);
+                window.location.reload();
+                return;
+              }
+              if (data.job.status === "failed") {
+                setControlsDisabled(false);
+                message.textContent = data.job.error_message || "آماده‌سازی فایل APK ناموفق بود.";
+                return;
+              }
+              pollJob(statusUrl);
+            })
+            .catch(function () {
+              setControlsDisabled(false);
+              message.textContent = "دریافت وضعیت آماده‌سازی ناموفق بود. لطفاً صفحه را تازه‌سازی کنید.";
+            });
+        }, 1000);
+      };
+
+      const setControlsDisabled = function (disabled) {
+        if (fileInput) {
+          fileInput.disabled = disabled;
+        }
+        if (submitButton) {
+          submitButton.disabled = disabled;
+        }
+      };
+
+      form.addEventListener("submit", function (event) {
+        event.preventDefault();
+
+        status.hidden = false;
+        message.textContent = "در حال آپلود و آماده‌سازی فایل APK...";
+        setProgress(0);
+        const formData = new FormData(form);
+        setControlsDisabled(true);
+
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", form.action, true);
+        xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+
+        xhr.upload.onprogress = function (progressEvent) {
+          if (progressEvent.lengthComputable) {
+            setProgress((progressEvent.loaded / progressEvent.total) * 100);
+          }
+        };
+
+        xhr.onload = function () {
+          let responseData = {};
+          if (xhr.getResponseHeader("content-type") && xhr.getResponseHeader("content-type").indexOf("application/json") !== -1) {
+            responseData = JSON.parse(xhr.responseText || "{}");
+          }
+
+          if (xhr.status >= 200 && xhr.status < 400 && responseData.ok !== false) {
+            setProgress(100);
+            message.textContent = responseData.message || "فایل APK با موفقیت آپلود و جایگزین شد.";
+            if (responseData.status_url) {
+              pollJob(responseData.status_url);
+            } else {
+              setControlsDisabled(false);
+            }
+            return;
+          }
+          setControlsDisabled(false);
+          message.textContent = responseData.message || "آپلود فایل APK ناموفق بود. لطفاً فایل APK معتبر انتخاب کنید و دوباره تلاش کنید.";
+        };
+
+        xhr.onerror = function () {
+          setControlsDisabled(false);
+          message.textContent = "ارتباط با سرور هنگام آپلود قطع شد. لطفاً دوباره تلاش کنید.";
+        };
+
+        xhr.send(formData);
+      });
+    })();
+  </script>
+  {{ block.super }}
+{% endblock %}
