@@ -13,6 +13,11 @@ urlpatterns = [
         name="order_redirect",
     ),
     path(
+        "blog/",
+        RedirectView.as_view(url="https://api.medogram.ir/blog/", permanent=True),
+        name="blog_redirect",
+    ),
+    path(
         "register/",
         RedirectView.as_view(url="/", permanent=True, query_string=True),
         name="register_patient",

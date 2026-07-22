@@ -996,6 +996,12 @@ class RegisterPatientViewTests(TestCase):
         self.assertEqual(response.status_code, 301)
         self.assertEqual(response["Location"], "/order/")
 
+    def test_blog_redirects_permanently_to_medogram_blog(self):
+        response = self.client.get("/blog/")
+
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response["Location"], "https://api.medogram.ir/blog/")
+
     def test_register_alias_redirects_permanently_to_canonical_home(self):
         response = self.client.get(reverse("patients:register_patient"))
 
